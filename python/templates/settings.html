@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+  <div class="card shadow-sm">
+    <div class="card-body">
+    {% if first_use %}
+      <h5 class="card-title"><i class="bi bi-soundwave pe-2"></i><span class="kaushan-script-regular">Echo Radio</span></h5>
+      <p class="card-text">This app is designed to allow you to record your favorite radio stations and replay so that you can listen as if they were broadcast in your own timezone. Wake up to your favorite breakfast shows and fall asleep to late night DJ's mixes.</p>
+    {% else %}
+        <h5 class="card-title">Settings</h5>
+    {% endif %}
+    <form method="POST" action="{{ url_for('home') }}">
+      <input type="hidden" name="action" value="settings">
+    
+      <!-- Admin toggle and password on same row -->
+      <div class="row align-items-center mb-3">
+        <div class="col-md-2">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="enable_admin" name="enable_admin"
+                   onchange="toggleAdminPassword()" {% if config.enable_admin %}checked{% endif %}>
+            <label class="form-check-label" for="enable_admin">Require Admin?</label>
+          </div>
+        </div>
+        <div class="col-md-4" id="admin_password_group" style="display:none;">
+          <label for="admin_password" class="form-label mb-1">Set Admin Password</label>
+          <div class="input-group">
+            <input type="password" class="form-control" id="admin_password" name="admin_password">
+            <button class="btn btn-outline-secondary" type="button" id="togglePassword" tabindex="-1">
+              <i class="bi bi-eye" id="eyeIcon"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    
+      <!-- Icecast Source and Admin Passwords on same row -->
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <label for="icecast_source_password" class="form-label">Icecast Source Password</label>
+          <input type="text" class="form-control" id="icecast_source_password"
+                 name="icecast_source_password" value="{{ config.icecast_source_password }}">
+        </div>
+        <div class="col-md-6">
+          <label for="icecast_admin_password" class="form-label">Icecast Admin Password</label>
+          <input type="text" class="form-control" id="icecast_admin_password"
+                 name="icecast_admin_password" value="{{ config.icecast_admin_password }}">
+        </div>
+      </div>
+    
+      <!-- Icecast Hostname + Protocol + Port -->
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <label for="icecast_public_hostname" class="form-label">Icecast Hostname</label>
+          <input type="text" class="form-control" id="icecast_public_hostname"
+                 name="icecast_public_hostname" value="{{ config.icecast_public_hostname }}">
+        </div>
+        <div class="col-md-3">
+          <label for="icecast_public_protocol" class="form-label">Icecast Protocol</label>
+          <select class="form-select" id="icecast_public_protocol" name="icecast_public_protocol">
+            <option value="http" {% if config.icecast_public_protocol == 'http' %}selected{% endif %}>http</option>
+            <option value="https" {% if config.icecast_public_protocol == 'https' %}selected{% endif %}>https</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label for="icecast_public_port" class="form-label">Icecast Port</label>
+          <input type="number" class="form-control" id="icecast_public_port"
+                 name="icecast_public_port" value="{{ config.icecast_public_port }}">
+        </div>
+      </div>
+    
+      <div class="mb-3">
+        <label for="icecast_max_sources" class="form-label">Icecast Max Clients</label>
+        <input type="number" class="form-control" id="icecast_max_sources"
+               name="icecast_max_sources" value="{{ config.icecast_max_sources }}">
+      </div>
+    
+      <button type="submit" class="btn btn-success">Save Configuration</button>
+    </form>
+    {% if not first_use %}
+    <h6 class="py-3">Logs</h6>
+    <ul class="list-group">
+      <li class="list-group-item">
+        <a href="{{ url_for('view_log', stub='_server', filename='supervisord.log') }}" target="_blank">Supervisord output - (supervisord.log)</a>
+      </li>
+      <li class="list-group-item">
+        <a href="{{ url_for('view_log', stub='_server', filename='sup_flask.out.log') }}" target="_blank">Flask supervisor log - (sup_flask.out.log)</a>
+      </li>
+      <li class="list-group-item">
+        <a href="{{ url_for('view_log', stub='_server', filename='sup_flask.err.log') }}" target="_blank">Flask supervisor error log - (sup_flask.err.log)</a>
+      </li>
+      <li class="list-group-item">
+        <a href="{{ url_for('view_log', stub='_server', filename='sup_icecast.out.log') }}" target="_blank">Icecast supervisor log - (sup_icecast.out.log)</a>
+      </li>
+      <li class="list-group-item">
+        <a href="{{ url_for('view_log', stub='_server', filename='sup_icecast.err.log') }}" target="_blank">Icecast supervisor error log - (sup_icecast.err.log)</a>
+      </li>
+      <li class="list-group-item">
+        <a href="{{ url_for('view_log', stub='_server', filename='access.log') }}" target="_blank">Icecast access log - (access.log)</a>
+      </li>
+      <li class="list-group-item">
+        <a href="{{ url_for('view_log', stub='_server', filename='error.log') }}" target="_blank">Icecast error log - (error.log)</a>
+      </li>
+    </ul>
+    {% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+  function toggleAdminPassword() {
+    const checkbox = document.getElementById('enable_admin');
+    const passwordGroup = document.getElementById('admin_password_group');
+    passwordGroup.style.display = checkbox.checked ? 'block' : 'none';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  toggleAdminPassword();
+
+  const toggleBtn = document.getElementById('togglePassword');
+  const passwordInput = document.getElementById('admin_password');
+  const eyeIcon = document.getElementById('eyeIcon');
+
+  toggleBtn.addEventListener('click', () => {
+    const type = passwordInput.type === 'password' ? 'text' : 'password';
+    passwordInput.type = type;
+    eyeIcon.classList.toggle('bi-eye');
+    eyeIcon.classList.toggle('bi-eye-slash');
+  });
+});
+</script>
+{% endblock %}

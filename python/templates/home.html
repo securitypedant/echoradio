@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+{% block content %}
+{% if not config.ENABLE_ADMIN or 'logged_in' in session %}
+<div class="container">
+  <div class="card shadow-sm">
+    <div class="card-body">
+      {% if streams|length >= config.ICECAST_MAX_SOURCES|int %}
+        <div class="alert alert-warning" role="alert">
+          Maximum number of streams reached ({{ config.ICECAST_MAX_SOURCES }}). Please delete a stream before adding a new one.
+        </div>
+      {% else %}
+      <form method="POST" action="{{ url_for('home') }}">
+        <div class="row">
+          <div class="col-md-4 mb-3">
+            <label for="stream_name" class="form-label">Stream Name</label>
+            <input type="text" class="form-control" id="stream_name" name="stream_name" value="{{ stream_data.name }}" required>
+          </div>
+          <div class="col-md-8 mb-3">
+            <label for="stream_url" class="form-label">Stream URL</label>
+            <input type="url" class="form-control" id="stream_url" name="stream_url" value="{{ stream_data.url }}" required>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label for="stream_description" class="form-label">Stream Description</label>
+          <input type="text" class="form-control" id="stream_description" name="stream_description" value="{{ stream_data.description }}" required>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label for="source_tz" class="form-label">Stream Timezone</label>
+            <select class="form-select" id="source_tz" name="source_tz" required>
+              {% for region, tz_list in timezones_grouped.items() %}
+                <optgroup label="{{ region }}">
+                  {% for tz in tz_list %}
+                    <option value="{{ tz }}" {% if stream_data and tz == stream_data['source_timezone'] %}selected{% endif %}>{{ tz }}</option>
+                  {% endfor %}
+                </optgroup>
+              {% endfor %}
+            </select>
+          </div>
+        
+          <div class="col-md-6 mb-3">
+            <label for="target_tz" class="form-label">Playback Timezone</label>
+            <select class="form-select" id="target_tz" name="target_tz" required>
+              {% for region, tz_list in timezones_grouped.items() %}
+                <optgroup label="{{ region }}">
+                  {% for tz in tz_list %}
+                    <option value="{{ tz }}" {% if stream_data and tz == stream_data['target_timezone'] %}selected{% endif %}>{{ tz }}</option>
+                  {% endfor %}
+                </optgroup>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        
+        <div class="text-center">
+          {% if stream_data %} 
+            <button type="submit" name="submit" value="update" class="btn btn-success">Update Stream</button>
+            <button type="submit" name="submit" value="cancel" class="btn btn-danger">Cancel</button>
+            <input type="hidden" name="stream_status" value="{{ stream_data.status }}">
+            <input type="hidden" name="stub" value="{{ stream_data.stub }}">
+            <input type="hidden" name="action" value="update">
+          {% else %}
+            <button type="submit" name="submit" value="add" class="btn btn-primary">Add Stream</button>
+            <input type="hidden" name="action" value="add">
+          {% endif %}
+        </div>
+        
+      </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+<h6 class="pt-3 ps-3">Configured streams ({{ streams|length }}/{{ config['ICECAST_MAX_SOURCES'] }})</h6>
+<div class="p-3">
+  <table class="table table-striped table-hover align-middle">
+    <thead class="table-dark">
+      <tr>
+        <th>Status</th>
+        <th>Name</th>
+        <th>Description</th>
+        <th>Listen</th>
+        {% if not config.ENABLE_ADMIN or 'logged_in' in session %}
+        <th class="text-end">Actions</th>
+        {% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for stream in streams %}
+        <tr>
+          <td>
+            <div class="form-check form-switch">
+              <input class="form-check-input stream-toggle"
+                     type="checkbox"
+                     role="switch"
+                     data-stream-id="{{ stream.stub }}"
+                     {% if stream.status == 'RUNNING' %}checked{% endif %}>
+            </div>
+          </td>
+          <td>
+            <a href="{{ icecast_public_hostname }}/{{ stream.stub }}" target="_blank">{{ stream.name }}</a>
+            <i class="bi bi-copy ms-2 copy-icon" role="button"
+              data-url="{{ icecast_public_hostname }}/{{ stream.stub }}"
+              title="Copy URL"
+              style="cursor: pointer;">
+            </i>
+          </td>
+          <td>{{ stream.description }}</td>
+          <td>
+            <div class="stream-media" id="media-{{ stream.stub }}" {% if stream.status != 'RUNNING' %}style="display: none;"{% endif %}>
+              <audio controls>
+                <source src="{{ icecast_public_hostname }}/{{ stream.stub }}" type="audio/mpeg">
+                Your browser does not support the audio element.
+              </audio>
+            </div>
+          </td>
+          {% if not config.ENABLE_ADMIN or 'logged_in' in session %}
+          <td class="text-end">
+            <a href="{{ url_for('status', stub=stream.stub) }}" class="btn btn-sm btn-secondary">Details</a>
+
+            <form method="POST" action="{{ url_for('home') }}" style="display:inline;">
+              <input type="hidden" name="action" value="edit">
+              <input type="hidden" name="stub" value="{{ stream.stub }}">
+              <button type="submit" class="btn btn-sm btn-warning">Edit</button>
+            </form>
+          
+            <form method="POST"
+            action="{{ url_for('home') }}"
+            style="display:inline;"
+            class="delete-form"
+            data-stream-name="{{ stream.name }}"
+            data-stream-stub="{{ stream.stub }}">
+              <input type="hidden" name="action" value="delete">
+              <input type="hidden" name="stub" value="{{ stream.stub }}">
+              <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal">
+                Delete
+              </button>
+            </form>
+          </td>
+          {% endif %}
+        </tr>
+      {% else %}
+        <tr><td colspan="5" class="text-center text-muted">No streams found</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div> 
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="modalDeleteForm" method="POST" action="{{ url_for('home') }}">
+        <div class="modal-header">
+          <h5 class="modal-title" id="confirmDeleteModalLabel">Confirm Delete</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          Are you sure you want to delete the stream <strong id="streamToDeleteName"></strong>?
+        </div>
+        <div class="modal-footer">
+          <input type="hidden" name="action" value="delete">
+          <input type="hidden" name="stub" id="modalDeleteStub" value="">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger">Delete</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // 🗑️ DELETE FORM MODAL HANDLING
+    const deleteForms = document.querySelectorAll('.delete-form');
+    const modalForm = document.getElementById('modalDeleteForm');
+    const streamNameSpan = document.getElementById('streamToDeleteName');
+    const stubInput = document.getElementById('modalDeleteStub');
+
+    deleteForms.forEach(form => {
+      form.querySelector('button[data-bs-toggle="modal"]').addEventListener('click', () => {
+        const streamName = form.getAttribute('data-stream-name');
+        const streamStub = form.getAttribute('data-stream-stub');
+
+        streamNameSpan.textContent = streamName;
+        stubInput.value = streamStub;
+      });
+    });
+
+    // ✅ STREAM TOGGLE HANDLER
+    document.querySelectorAll('.stream-toggle').forEach(toggle => {
+      toggle.addEventListener('change', (e) => {
+        const streamId = e.target.dataset.streamId;
+        const action = e.target.checked ? 'start' : 'stop';
+
+        fetch('/stream_control', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action, stream_id: streamId })
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.status === "success") {
+            const pastTense = {
+              start: 'started',
+              stop: 'stopped',
+              restart: 'restarted'
+            }[action] || `${action}ed`;
+
+            showFlash('success', `Stream '${streamId}' ${pastTense} successfully.`);
+
+            const mediaPlayer = document.getElementById(`media-${streamId}`);
+            if (mediaPlayer) {
+              mediaPlayer.style.display = action === 'start' ? 'block' : 'none';
+
+              // Force audio reload
+              if (action === 'start') {
+                const audio = mediaPlayer.querySelector('audio');
+                const source = audio.querySelector('source');
+                const newSrc = `${source.getAttribute('src')}?t=${Date.now()}`;
+                source.setAttribute('src', newSrc);
+                audio.load();
+              }
+            }
+          } else {
+            showFlash('danger', `Failed to ${action} stream '${streamId}': ${data.message}`);
+          }
+        })
+        .catch(err => {
+          showFlash('danger', `Unexpected error: ${err}`);
+        });
+      });
+    });
+
+    // 📋 COPY URL ICON HANDLER
+    document.querySelectorAll('.copy-icon').forEach(icon => {
+      icon.addEventListener('click', function () {
+        const url = this.getAttribute('data-url');
+        navigator.clipboard.writeText(url).then(() => {
+          const originalClass = this.className;
+          this.className = 'bi bi-check2 ms-2 text-success';
+          setTimeout(() => {
+            this.className = originalClass;
+          }, 1500);
+        }).catch(err => {
+          console.error('Clipboard error:', err);
+        });
+      });
+    });
+  });
+
+  // 🔔 FLASH MESSAGE FUNCTION
+  function showFlash(category, message) {
+    const flashContainer = document.getElementById('flash-messages');
+
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${category} alert-dismissible fade show`;
+    alertDiv.role = "alert";
+    alertDiv.innerHTML = `
+      ${message}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+
+    flashContainer.prepend(alertDiv);
+
+    setTimeout(() => {
+      alertDiv.classList.remove('show');
+      setTimeout(() => alertDiv.remove(), 300);
+    }, 5000);
+  }
+</script>
+{% endblock %}

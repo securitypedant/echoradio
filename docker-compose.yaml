@@ -1,0 +1,11 @@
+services:
+  echoradio:
+    image: echoradio:latest
+    container_name: echoradio
+    ports:
+      - "8000:8000"   # Icecast
+      - "8080:8080"   # Flask app
+    restart: unless-stopped
+    environment:
+      - FLASK_ENV=production
+      - FLASK_APP=app.py

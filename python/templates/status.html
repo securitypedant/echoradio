@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h5 class="card-title">Stream: {{ stub }}</h5>
+      <div class="d-flex justify-content-start align-items-center gap-4">
+        <p class="mb-0">Status: <strong>{{ supervisor_status.statename }}</strong></p>
+        <p class="mb-0">Uptime: <strong>{{ uptime }}</strong></p>
+      </div>    
+
+      <div class="row mt-4">
+        <!-- MP3 Source Files -->
+        <div class="col-md-6">
+          <h6>MP3 Source Files</h6>
+          {% if mp3_files %}
+            <ul class="list-group mb-3">
+              {% for file in mp3_files %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                  <div>
+                    <strong>{{ file.name }}</strong><br>
+                    <small class="text-muted">
+                      {{ file.size }} MB &middot; 
+                      Last modified: {{ file.last_modified.strftime('%Y-%m-%d %H:%M:%S') }}
+                    </small>
+                  </div>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p>No MP3 files found.</p>
+          {% endif %}
+        </div>
+
+        <!-- Logs -->
+        <div class="col-md-6">
+          <h6>Logs</h6>
+          <ul class="list-group">
+            <li class="list-group-item">
+              <a href="{{ url_for('view_log', stub=stub, filename='stream.log') }}" target="_blank">Liquidsoap output - (stream.log)</a>
+            </li>
+            <li class="list-group-item">
+              <a href="{{ url_for('view_log', stub=stub, filename='sup_err.log') }}" target="_blank">Supervisord errors - (sup_err.log)</a>
+            </li>
+            <li class="list-group-item">
+              <a href="{{ url_for('view_log', stub=stub, filename='sup_out.log') }}" target="_blank">Supervisord output - (sup_out.log)</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

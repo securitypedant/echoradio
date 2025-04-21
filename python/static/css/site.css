@@ -1,0 +1,14 @@
+/* Site wide CSS */
+body {
+    background-color: #dcf2f7;
+}
+
+.kaushan-script-regular {
+    font-family: "Kaushan Script", cursive;
+    font-weight: 400;
+    font-style: normal;
+  }
+  
+  .nav-bg {
+    background-color: #12172d;
+}
