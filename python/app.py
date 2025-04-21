@@ -17,7 +17,7 @@ app.secret_key = app.config['SECRET_KEY']
 register_routes(app)
 
 # Check general app structure and required files/folders
-check_app_infra(app)
+check_app_infra()
 
 # Only run the Flask development server if executed directly
 if __name__ == '__main__':
