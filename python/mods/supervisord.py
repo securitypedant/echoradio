@@ -30,6 +30,7 @@ killasgroup=true
 stopasgroup=true
 stderr_logfile={stream_log_path}/sup_err.log
 stdout_logfile={stream_log_path}/sup_out.log
+user=streamer
 """
 
     with open(config_file, 'w') as f:

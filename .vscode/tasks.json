@@ -4,7 +4,7 @@
       {
         "label": "Restart Flask App in Container",
         "type": "shell",
-        "command": "docker exec echoradio supervisorctl restart python_app"
+        "command": "docker exec echoradio supervisorctl restart python_flask"
       }
     ]
   }

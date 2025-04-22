@@ -3,7 +3,7 @@
 FROM ubuntu:noble
 
 # Accept a build-time argument
-ARG FLASK_ENV=development
+ARG FLASK_ENV=production
 ENV FLASK_ENV=${FLASK_ENV}
 
 # Install basic system dependencies
@@ -23,6 +23,10 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 RUN useradd -m -s /bin/bash streamer && \
     mkdir -p /app/data/logs/
 
+# Create a dedicated group for supervisor access
+RUN groupadd -r supervisor && \
+    usermod -aG supervisor streamer
+
 # Switch to non-root user
 USER streamer
 WORKDIR /home/streamer
@@ -40,7 +44,7 @@ RUN opam init --bare --disable-sandboxing && \
 ENV OPAMROOT=/home/streamer/.opam
 ENV PATH=/home/streamer/.opam/4.14.2/bin:$PATH
 
-# Configure application environment    
+# Configure application environment
 WORKDIR /app
 
 # Setup python environment
@@ -52,13 +56,17 @@ RUN rm -rf /app/data/streams /app/data/supervisord_configs
 RUN if [ "$FLASK_ENV" = "development" ]; then pip install --break-system-packages debugpy; fi
 
 USER root
+# Install and configure logrotation
+RUN apt-get update && apt-get install -y logrotate
+COPY logrotate_configs/iceandsuper /etc/logrotate.d/iceandsuper
+COPY logrotate_configs/streams /etc/logrotate.d/streams
+
 # Configure Icecast and supervisor
 COPY supervisord.conf /etc/supervisord.conf
 # Make sure streamer owns the /app directory
 RUN chmod +x /app/start_flask.sh
 RUN chown -R streamer:streamer /app
 
-USER streamer
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
 
 # Expose ports (8000 for Icecast, 8080 for Flask)

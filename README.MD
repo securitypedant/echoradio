@@ -27,12 +27,16 @@ You can either build from source, or it's much easier to deploy the existing Doc
 
 ### Next release
 
-- Fix problems with the config, for some reason localhost keeps popping up. 
+- Fix issue with icecast sources not updating from settings page.
+- Consider adding user_agent to liquidstream http input
+  - input.http("URL", user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36")
 - Add stream URL test prior to adding.
 - Add log rollover and expose log retention in settings
+- Fix mobile views and add a simple mobile player UX
 
 ### Backlog and feature requests
 
+- Add ability to know if the stream is currently synced or catching up.
 - Build an API to allow search for radio streams.
 - Look at adding metadata in the rebroadcast stream. Copy anything that might be in the source.
 

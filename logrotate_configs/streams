@@ -1,0 +1,11 @@
+# Rotate logs for each stream
+/app/data/streams/*/*.log {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    create 644 streamer streamer
+}

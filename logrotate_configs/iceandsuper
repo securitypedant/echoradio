@@ -1,0 +1,11 @@
+# Icecast and supervisord log rotation
+/app/data/logs/*.log {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    create 644 streamer streamer
+}
