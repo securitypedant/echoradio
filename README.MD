@@ -38,6 +38,7 @@ You can either build from source, or it's much easier to deploy the existing Doc
 - Build an API to allow search for radio streams.
 - Look at adding metadata in the rebroadcast stream. Copy anything that might be in the source.
 - Create an echoradio log, showing adding, deleting, starting, stopping streams etc
+- When the container is restarted, check status of streams and update their metadata
 
 ## 📝 License
 
