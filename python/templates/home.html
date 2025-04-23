@@ -76,56 +76,64 @@
 <h6 class="pt-4 ps-3">Configured streams ({{ streams|length }}/{{ config['ICECAST_MAX_SOURCES'] }})</h6>
 <div class="list-group p-3">
   {% for stream in streams %}
-  <div class="list-group-item d-flex flex-wrap align-items-center justify-content-between gap-3">
-
-    <!-- LEFT: Stream Name + Description -->
-    <div class="d-flex align-items-center gap-2 flex-wrap">
-            <!-- Toggle -->
-            <div class="form-check form-switch mb-0">
-              <input class="form-check-input stream-toggle"
-                     type="checkbox"
-                     role="switch"
-                     data-stream-id="{{ stream.stub }}"
-                     {% if stream.status == 'RUNNING' %}checked{% endif %}>
-            </div>
-      <strong>{{ stream.name }}</strong>
-      <span class="text-muted small">{{ stream.description }}</span>
+  <div class="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <!-- LEFT: Toggle • Title • Description (inline) -->
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+      <!-- Toggle -->
+      <div class="form-check form-switch mb-0">
+        <input class="form-check-input stream-toggle"
+               type="checkbox"
+               role="switch"
+               data-stream-id="{{ stream.stub }}"
+               {% if stream.status == 'RUNNING' %}checked{% endif %}>
+      </div>
+  
+      <!-- Title + Description inline -->
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <strong>{{ stream.name }}</strong>
+        <span class="text-muted small">{{ stream.description }}</span>
+      </div>
     </div>
-
-    <!-- MIDDLE: Media Player + Listen + Copy -->
-    {% if stream.status == 'RUNNING' %}
-    <div class="d-flex align-items-center gap-2" id="media-{{ stream.stub }}">
+  
+    <!-- RIGHT: Media + Buttons -->
+    {% if not config.ENABLE_ADMIN or 'logged_in' in session %}
+    <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end ms-auto">
+  
+      {% if stream.status == 'RUNNING' %}
       <!-- Media Player -->
-      <audio controls style="width: 250px; max-width: 100%;">
+      <audio controls style="width: 250px;">
         <source src="{{ icecast_public_hostname }}/{{ stream.stub }}" type="audio/mpeg">
         Your browser does not support the audio element.
       </audio>
-    </div>
-    {% endif %}
-    
-    <!-- RIGHT: Controls -->
-    <div class="d-flex align-items-center gap-3 flex-wrap justify-content-end ms-auto">
+  
       <!-- Fullscreen Player Button -->
-      <a href="{{ url_for('player', stub=stream.stub) }}" class="btn btn-outline-primary btn-sm" title="Open Fullscreen Player">
+      <a href="{{ url_for('player', stub=stream.stub) }}"
+         class="btn btn-outline-primary btn-sm"
+         title="Open Fullscreen Player">
         <i class="bi bi-play-fill"></i>
       </a>
-    
+  
       <!-- Copy Button -->
-      <button type="button" class="btn btn-outline-secondary btn-sm copy-icon"
+      <button type="button"
+              class="btn btn-outline-secondary btn-sm copy-icon"
               data-url="{{ icecast_public_hostname }}/{{ stream.stub }}"
               title="Copy Stream URL">
         <i class="bi bi-clipboard"></i>
       </button>
-      {% if not config.ENABLE_ADMIN or 'logged_in' in session %}
-      <!-- Action Buttons -->
-      <a href="{{ url_for('status', stub=stream.stub) }}" class="btn btn-sm btn-outline-secondary">Details</a>
-
+      {% endif %}
+  
+      <!-- Details -->
+      <a href="{{ url_for('status', stub=stream.stub) }}"
+         class="btn btn-sm btn-outline-secondary">Details</a>
+  
+      <!-- Edit -->
       <form method="POST" action="{{ url_for('home') }}" style="display:inline;">
         <input type="hidden" name="action" value="edit">
         <input type="hidden" name="stub" value="{{ stream.stub }}">
         <button type="submit" class="btn btn-sm btn-outline-warning">Edit</button>
       </form>
-
+  
+      <!-- Delete -->
       <form method="POST"
             action="{{ url_for('home') }}"
             style="display:inline;"
@@ -134,13 +142,16 @@
             data-stream-stub="{{ stream.stub }}">
         <input type="hidden" name="action" value="delete">
         <input type="hidden" name="stub" value="{{ stream.stub }}">
-        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal">
+        <button type="button" class="btn btn-sm btn-outline-danger"
+                data-bs-toggle="modal" data-bs-target="#confirmDeleteModal">
           Delete
         </button>
       </form>
-      {% endif %}
     </div>
+    {% endif %}
   </div>
+  
+  
   {% else %}
   <div class="text-center text-muted">No streams found</div>
   {% endfor %}
