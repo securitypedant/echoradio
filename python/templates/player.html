@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .fullscreen-container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    background: #f8f9fa;
+  }
+  .stream-title {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+  }
+  .stream-description {
+    font-size: 1rem;
+    color: #6c757d;
+    margin-bottom: 1.5rem;
+  }
+  .audio-player {
+    width: 100%;
+    max-width: 400px;
+    margin-bottom: 2rem;
+  }
+</style>
+
+<div class="fullscreen-container">
+  <div>
+    <div class="stream-title">{{ stream.name }}</div>
+    {% if stream.description %}
+      <div class="stream-description">{{ stream.description }}</div>
+    {% endif %}
+
+    <audio controls autoplay class="audio-player">
+      <source src="{{ icecast_public_hostname }}/{{ stream.stub }}" type="audio/mpeg">
+      Your browser does not support the audio element.
+    </audio>
+    <a href="{{ url_for('home') }}" class="btn btn-secondary">
+      <i class="bi bi-arrow-left"></i> Back
+    </a>
+  </div>
+</div>
+{% endblock %}

@@ -92,6 +92,6 @@ def update_icecast_config(icecast_public_hostname='localhost',
     replace_in_file(icecast_config_path, r'<source-password>.*?</source-password>', f'<source-password>{icecast_source_password}</source-password>')
 
     # Other config
-    replace_in_file(icecast_config_path, r' <sources>.*?</sources>', f'<sources>{icecast_max_sources}</sources>')
+    replace_in_file(icecast_config_path, r'<sources>.*?</sources>', f'<sources>{icecast_max_sources}</sources>')
 
     supervisord_control(action='restart', service='icecast')

@@ -27,18 +27,17 @@ You can either build from source, or it's much easier to deploy the existing Doc
 
 ### Next release
 
-- Fix issue with icecast sources not updating from settings page.
-- Consider adding user_agent to liquidstream http input
-  - input.http("URL", user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36")
-- Add stream URL test prior to adding.
-- Add log rollover and expose log retention in settings
-- Fix mobile views and add a simple mobile player UX
+- Fix issue so that when it's recorded the full delay, does it switch from live stream to recorded content?
 
 ### Backlog and feature requests
 
-- Add ability to know if the stream is currently synced or catching up.
+- Add stream URL test prior to adding.
+- Expose log retention in settings
+- Consider moving add new stream into a seperate page
+- Add ability to know if the stream is currently synced or catching up. Highlight which mp3 is currently being written.
 - Build an API to allow search for radio streams.
 - Look at adding metadata in the rebroadcast stream. Copy anything that might be in the source.
+- Create an echoradio log, showing adding, deleting, starting, stopping streams etc
 
 ## 📝 License
 

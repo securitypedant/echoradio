@@ -73,80 +73,79 @@
   </div>
 </div>
 {% endif %}
-<h6 class="pt-3 ps-3">Configured streams ({{ streams|length }}/{{ config['ICECAST_MAX_SOURCES'] }})</h6>
-<div class="p-3">
-  <table class="table table-striped table-hover align-middle">
-    <thead class="table-dark">
-      <tr>
-        <th>Status</th>
-        <th>Name</th>
-        <th>Description</th>
-        <th>Listen</th>
-        {% if not config.ENABLE_ADMIN or 'logged_in' in session %}
-        <th class="text-end">Actions</th>
-        {% endif %}
-      </tr>
-    </thead>
-    <tbody>
-      {% for stream in streams %}
-        <tr>
-          <td>
-            <div class="form-check form-switch">
+<h6 class="pt-4 ps-3">Configured streams ({{ streams|length }}/{{ config['ICECAST_MAX_SOURCES'] }})</h6>
+<div class="list-group p-3">
+  {% for stream in streams %}
+  <div class="list-group-item d-flex flex-wrap align-items-center justify-content-between gap-3">
+
+    <!-- LEFT: Stream Name + Description -->
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+            <!-- Toggle -->
+            <div class="form-check form-switch mb-0">
               <input class="form-check-input stream-toggle"
                      type="checkbox"
                      role="switch"
                      data-stream-id="{{ stream.stub }}"
                      {% if stream.status == 'RUNNING' %}checked{% endif %}>
             </div>
-          </td>
-          <td>
-            <a href="{{ icecast_public_hostname }}/{{ stream.stub }}" target="_blank">{{ stream.name }}</a>
-            <i class="bi bi-copy ms-2 copy-icon" role="button"
-              data-url="{{ icecast_public_hostname }}/{{ stream.stub }}"
-              title="Copy URL"
-              style="cursor: pointer;">
-            </i>
-          </td>
-          <td>{{ stream.description }}</td>
-          <td>
-            <div class="stream-media" id="media-{{ stream.stub }}" {% if stream.status != 'RUNNING' %}style="display: none;"{% endif %}>
-              <audio controls>
-                <source src="{{ icecast_public_hostname }}/{{ stream.stub }}" type="audio/mpeg">
-                Your browser does not support the audio element.
-              </audio>
-            </div>
-          </td>
-          {% if not config.ENABLE_ADMIN or 'logged_in' in session %}
-          <td class="text-end">
-            <a href="{{ url_for('status', stub=stream.stub) }}" class="btn btn-sm btn-secondary">Details</a>
+      <strong>{{ stream.name }}</strong>
+      <span class="text-muted small">{{ stream.description }}</span>
+    </div>
 
-            <form method="POST" action="{{ url_for('home') }}" style="display:inline;">
-              <input type="hidden" name="action" value="edit">
-              <input type="hidden" name="stub" value="{{ stream.stub }}">
-              <button type="submit" class="btn btn-sm btn-warning">Edit</button>
-            </form>
-          
-            <form method="POST"
+    <!-- MIDDLE: Media Player + Listen + Copy -->
+    {% if stream.status == 'RUNNING' %}
+    <div class="d-flex align-items-center gap-2" id="media-{{ stream.stub }}">
+      <!-- Media Player -->
+      <audio controls style="width: 250px; max-width: 100%;">
+        <source src="{{ icecast_public_hostname }}/{{ stream.stub }}" type="audio/mpeg">
+        Your browser does not support the audio element.
+      </audio>
+    </div>
+    {% endif %}
+    
+    <!-- RIGHT: Controls -->
+    <div class="d-flex align-items-center gap-3 flex-wrap justify-content-end ms-auto">
+      <!-- Fullscreen Player Button -->
+      <a href="{{ url_for('player', stub=stream.stub) }}" class="btn btn-outline-primary btn-sm" title="Open Fullscreen Player">
+        <i class="bi bi-play-fill"></i>
+      </a>
+    
+      <!-- Copy Button -->
+      <button type="button" class="btn btn-outline-secondary btn-sm copy-icon"
+              data-url="{{ icecast_public_hostname }}/{{ stream.stub }}"
+              title="Copy Stream URL">
+        <i class="bi bi-clipboard"></i>
+      </button>
+      {% if not config.ENABLE_ADMIN or 'logged_in' in session %}
+      <!-- Action Buttons -->
+      <a href="{{ url_for('status', stub=stream.stub) }}" class="btn btn-sm btn-outline-secondary">Details</a>
+
+      <form method="POST" action="{{ url_for('home') }}" style="display:inline;">
+        <input type="hidden" name="action" value="edit">
+        <input type="hidden" name="stub" value="{{ stream.stub }}">
+        <button type="submit" class="btn btn-sm btn-outline-warning">Edit</button>
+      </form>
+
+      <form method="POST"
             action="{{ url_for('home') }}"
             style="display:inline;"
             class="delete-form"
             data-stream-name="{{ stream.name }}"
             data-stream-stub="{{ stream.stub }}">
-              <input type="hidden" name="action" value="delete">
-              <input type="hidden" name="stub" value="{{ stream.stub }}">
-              <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal">
-                Delete
-              </button>
-            </form>
-          </td>
-          {% endif %}
-        </tr>
-      {% else %}
-        <tr><td colspan="5" class="text-center text-muted">No streams found</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div> 
+        <input type="hidden" name="action" value="delete">
+        <input type="hidden" name="stub" value="{{ stream.stub }}">
+        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal">
+          Delete
+        </button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+  <div class="text-center text-muted">No streams found</div>
+  {% endfor %}
+</div>
+
 <!-- Delete Confirmation Modal -->
 <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
   <div class="modal-dialog">

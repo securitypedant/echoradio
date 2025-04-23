@@ -7,7 +7,7 @@ end
 
 on_shutdown(cleanup)
 
-radio_input_stream = input.http("$stream_input")
+radio_input_stream = input.http("$stream_input", user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36")
 radio_input_stream = mksafe(radio_input_stream)
 
 output.file(
