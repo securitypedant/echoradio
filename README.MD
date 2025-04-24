@@ -23,23 +23,6 @@ You can either build from source, or it's much easier to deploy the existing Doc
 3. When accessing for the first time, set passwords for Icecast admin and streaming. Also, set Icecast hostname, protocol and port for what is the Internet accessible address. These values will be used in the web interface. You can also set an admin password so that you can share the URL with others to listen.
 4. Add streams, by default you can add 3. But use settings to increase as you need.
 
-## 🔥 Upcoming changes
-
-### Next release
-
-- Fix issue so that when it's recorded the full delay, does it switch from live stream to recorded content?
-
-### Backlog and feature requests
-
-- Add stream URL test prior to adding.
-- Expose log retention in settings
-- Consider moving add new stream into a seperate page
-- Add ability to know if the stream is currently synced or catching up. Highlight which mp3 is currently being written.
-- Build an API to allow search for radio streams.
-- Look at adding metadata in the rebroadcast stream. Copy anything that might be in the source.
-- Create an echoradio log, showing adding, deleting, starting, stopping streams etc
-- When the container is restarted, check status of streams and update their metadata
-
 ## 📝 License
 
 MIT License
@@ -53,7 +36,7 @@ Inspired by the power of community broadcasting.
 
 ### Local
 
-- docker build --build-arg FLASK_ENV=development . -t echoradio
+docker build --build-arg FLASK_ENV=development . -t echoradio
 
 ### Docker hub
 

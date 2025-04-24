@@ -80,6 +80,7 @@
     <!-- LEFT: Toggle • Title • Description (inline) -->
     <div class="d-flex align-items-center gap-3 flex-wrap">
       <!-- Toggle -->
+      {% if not config.ENABLE_ADMIN or 'logged_in' in session %}
       <div class="form-check form-switch mb-0">
         <input class="form-check-input stream-toggle"
                type="checkbox"
@@ -87,6 +88,7 @@
                data-stream-id="{{ stream.stub }}"
                {% if stream.status == 'RUNNING' %}checked{% endif %}>
       </div>
+      {% endif %}
   
       <!-- Title + Description inline -->
       <div class="d-flex flex-wrap align-items-center gap-2">
@@ -96,7 +98,6 @@
     </div>
   
     <!-- RIGHT: Media + Buttons -->
-    {% if not config.ENABLE_ADMIN or 'logged_in' in session %}
     <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end ms-auto">
   
       {% if stream.status == 'RUNNING' %}
@@ -121,7 +122,7 @@
         <i class="bi bi-clipboard"></i>
       </button>
       {% endif %}
-  
+      {% if not config.ENABLE_ADMIN or 'logged_in' in session %}
       <!-- Details -->
       <a href="{{ url_for('status', stub=stream.stub) }}"
          class="btn btn-sm btn-outline-secondary">Details</a>
@@ -147,8 +148,8 @@
           Delete
         </button>
       </form>
+      {% endif %}
     </div>
-    {% endif %}
   </div>
   
   
