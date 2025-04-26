@@ -61,7 +61,8 @@ RUN apt-get update && apt-get install -y logrotate
 COPY logrotate_configs/iceandsuper /etc/logrotate.d/iceandsuper
 COPY logrotate_configs/streams /etc/logrotate.d/streams
 
-# Configure Icecast and supervisor
+# Configure supervisord, cron
+RUN apt-get update && apt-get install -y cron
 COPY supervisord.conf /etc/supervisord.conf
 # Make sure streamer owns the /app directory
 RUN chmod +x /app/start_flask.sh
