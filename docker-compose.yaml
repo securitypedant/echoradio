@@ -1,6 +1,6 @@
 services:
   echoradio:
-    image: echoradio:latest
+    image: simonsecuritypedant/echoradio:latest
     container_name: echoradio
     volumes:
       - ./python:/app    
