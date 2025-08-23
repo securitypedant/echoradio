@@ -3,7 +3,7 @@
 
 ## Listen to international radio in your local timezone
 
-Wish you could wake up to your favorite New York radio station breakfast show and go to sleeping listening to Australian talk radio? I created this app to help you do just that. Add internet streams, chosing the timezone they are broadcast in and the timezone you want to listen in. EchoRadio will record the stream, and then rebroadcast matching the content to your local time.
+Wish you could wake up to your favorite New York radio station breakfast show and go to sleeping listening to Australian talk radio? I created this app to help you do just that. Add internet streams, choosing the timezone they are broadcast in and the timezone you want to listen in. EchoRadio will record the stream, and then rebroadcast matching the content to your local time.
 
 ![EchoRadio screenshot](echoradio-screenshot.png)
 

@@ -2,8 +2,6 @@ services:
   echoradio:
     image: echoradio:latest
     container_name: echoradio
-    volumes:
-      - ./python:/app
     ports:
       - "8000:8000"   # Icecast
       - "8080:8080"   # Flask app
