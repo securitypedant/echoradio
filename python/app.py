@@ -5,6 +5,8 @@ from flask import Flask
 from mods.routes import register_routes
 from mods.infra import check_app_infra
 from mods.config import Config
+from mods.streams import load_all_streams
+from mods.ux import stream_control
 
 # Load the JSON config into the Config class
 Config.load_json_config()
@@ -18,6 +20,11 @@ register_routes(app)
 
 # Check general app structure and required files/folders
 check_app_infra()
+
+# Check the status of each stream and start if needed.
+for stream in load_all_streams(app.config['STREAMS_ROOT']):
+    if stream['status'] == 'RUNNING':
+        stream_control(action='start', stream_id=stream['stub'])
 
 # Only run the Flask development server if executed directly
 if __name__ == '__main__':
