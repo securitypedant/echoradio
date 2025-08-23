@@ -125,15 +125,30 @@
       {% if not config.ENABLE_ADMIN or 'logged_in' in session %}
       <!-- Details -->
       <a href="{{ url_for('status', stub=stream.stub) }}"
-         class="btn btn-sm btn-outline-secondary">Details</a>
+         class="btn btn-sm btn-secondary">Details</a>
   
       <!-- Edit -->
       <form method="POST" action="{{ url_for('home') }}" style="display:inline;">
         <input type="hidden" name="action" value="edit">
         <input type="hidden" name="stub" value="{{ stream.stub }}">
-        <button type="submit" class="btn btn-sm btn-outline-warning">Edit</button>
+        <button type="submit" class="btn btn-sm btn-warning">Edit</button>
       </form>
   
+      <!-- Reset -->
+      <form method="POST"
+            action="{{ url_for('home') }}"
+            style="display:inline;"
+            class="reset-form"
+            data-stream-name="{{ stream.name }}"
+            data-stream-stub="{{ stream.stub }}">
+        <input type="hidden" name="action" value="reset">
+        <input type="hidden" name="stub" value="{{ stream.stub }}">
+        <button type="button" class="btn btn-sm btn-info"
+                data-bs-toggle="modal" data-bs-target="#confirmActionModal">
+          Reset
+        </button>
+      </form>  
+
       <!-- Delete -->
       <form method="POST"
             action="{{ url_for('home') }}"
@@ -143,8 +158,8 @@
             data-stream-stub="{{ stream.stub }}">
         <input type="hidden" name="action" value="delete">
         <input type="hidden" name="stub" value="{{ stream.stub }}">
-        <button type="button" class="btn btn-sm btn-outline-danger"
-                data-bs-toggle="modal" data-bs-target="#confirmDeleteModal">
+        <button type="button" class="btn btn-sm btn-danger"
+                data-bs-toggle="modal" data-bs-target="#confirmActionModal">
           Delete
         </button>
       </form>
@@ -158,47 +173,63 @@
   {% endfor %}
 </div>
 
-<!-- Delete Confirmation Modal -->
-<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
+<!-- Action Confirmation Modal -->
+<div class="modal fade" id="confirmActionModal" tabindex="-1" aria-labelledby="confirmActionModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
-      <form id="modalDeleteForm" method="POST" action="{{ url_for('home') }}">
+      <form id="modalActionForm" method="POST" action="{{ url_for('home') }}">
         <div class="modal-header">
-          <h5 class="modal-title" id="confirmDeleteModalLabel">Confirm Delete</h5>
+          <h5 class="modal-title" id="confirmActionModalLabel">Confirm Action</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          Are you sure you want to delete the stream <strong id="streamToDeleteName"></strong>?
+          Are you sure you want to <span id="actionWord"></span> the stream
+          <strong id="streamActionName"></strong>?
         </div>
         <div class="modal-footer">
-          <input type="hidden" name="action" value="delete">
-          <input type="hidden" name="stub" id="modalDeleteStub" value="">
+          <input type="hidden" name="action" id="modalActionField" value="">
+          <input type="hidden" name="stub" id="modalActionStub" value="">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-danger">Delete</button>
+          <button type="submit" id="modalActionButton" class="btn">Confirm</button>
         </div>
       </form>
     </div>
   </div>
 </div>
+
 <script>
-  document.addEventListener('DOMContentLoaded', () => {
-    // 🗑️ DELETE FORM MODAL HANDLING
-    const deleteForms = document.querySelectorAll('.delete-form');
-    const modalForm = document.getElementById('modalDeleteForm');
-    const streamNameSpan = document.getElementById('streamToDeleteName');
-    const stubInput = document.getElementById('modalDeleteStub');
+document.addEventListener('DOMContentLoaded', () => {
+  const modalForm = document.getElementById('modalActionForm');
+  const actionField = document.getElementById('modalActionField');
+  const stubInput = document.getElementById('modalActionStub');
+  const streamNameSpan = document.getElementById('streamActionName');
+  const actionWordSpan = document.getElementById('actionWord');
+  const modalTitle = document.getElementById('confirmActionModalLabel');
+  const modalButton = document.getElementById('modalActionButton');
 
-    deleteForms.forEach(form => {
-      form.querySelector('button[data-bs-toggle="modal"]').addEventListener('click', () => {
-        const streamName = form.getAttribute('data-stream-name');
-        const streamStub = form.getAttribute('data-stream-stub');
+  // Attach to both delete + reset forms
+  document.querySelectorAll('.delete-form, .reset-form').forEach(form => {
+    const button = form.querySelector('button[data-bs-toggle="modal"]');
+    button.addEventListener('click', () => {
+      const action = form.querySelector('input[name="action"]').value;
+      const streamName = form.getAttribute('data-stream-name');
+      const streamStub = form.getAttribute('data-stream-stub');
 
-        streamNameSpan.textContent = streamName;
-        stubInput.value = streamStub;
-      });
+      // Update modal fields
+      actionField.value = action;
+      stubInput.value = streamStub;
+      streamNameSpan.textContent = streamName;
+
+      // Capitalize action word
+      const capitalized = action.charAt(0).toUpperCase() + action.slice(1);
+
+      modalTitle.textContent = `Confirm ${capitalized}`;
+      actionWordSpan.textContent = action;
+      modalButton.textContent = capitalized;
+      modalButton.className = `btn ${action === 'delete' ? 'btn-danger' : 'btn-info'}`;
     });
+  });
 
-    // ✅ STREAM TOGGLE HANDLER
     document.querySelectorAll('.stream-toggle').forEach(toggle => {
       toggle.addEventListener('change', (e) => {
         const streamId = e.target.dataset.streamId;
@@ -243,7 +274,6 @@
       });
     });
 
-    // 📋 COPY URL ICON HANDLER
     document.querySelectorAll('.copy-icon').forEach(icon => {
       icon.addEventListener('click', function () {
         const url = this.getAttribute('data-url');
@@ -260,7 +290,6 @@
     });
   });
 
-  // 🔔 FLASH MESSAGE FUNCTION
   function showFlash(category, message) {
     const flashContainer = document.getElementById('flash-messages');
 

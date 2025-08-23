@@ -3,6 +3,7 @@ import re
 import shutil
 import json
 import bcrypt
+import glob
 
 from flask import (render_template, 
                    request, 
@@ -38,7 +39,7 @@ def home():
         if action == 'start' or action == 'settings':
             configure_server(request)
     
-    # Check for server_config.json and if it doesn't exist, render firstuse.html
+    # Check for server_config.json and if it doesn't exist, render settings.html
     if not os.path.exists(current_app.config['SERVER_CONFIG_FILE']):
         config = {
             "enable_admin": False,
@@ -122,7 +123,19 @@ def home():
                     flash(str(e), 'danger')
             else:
                 flash('Radio stream not found', 'danger')
-
+        
+        elif action == 'reset':
+            stub = request.form.get('stub')
+            if stub:
+                try:
+                    reset_stream(stub)
+                    flash(f"Stream '{stub}' reset successfully.", 'success')
+                except FileNotFoundError as e:
+                    flash(str(e), 'danger')
+                except Exception as e:
+                    flash(str(e), 'danger')
+            else:
+                flash('Radio stream not found', 'danger')                
         elif action == 'edit':
             stub = request.form.get('stub')
             stream_data = get_stream_metadata(stub)
@@ -143,12 +156,49 @@ def home():
                            icecast_public_hostname=f"{current_app.config['ICECAST_PUBLIC_PROTOCOL']}://{current_app.config['ICECAST_PUBLIC_HOSTNAME']}:{current_app.config['ICECAST_PUBLIC_PORT']}",
                         )
 
-def stream_control():
-    data = request.get_json()
-    action = data.get("action")
-    stream_id = data.get("stream_id")
+def stream_control(action=None, stream_id=None):
+    """Control a stream either from server code or an Ajax request."""
+    # If no parameters sent, assume we're being called from an Ajax request
+    if action is None or stream_id is None:
+        data = request.get_json(force=True)  # force=True avoids None if no headers
+        action = data.get("action")
+        stream_id = data.get("stream_id")
+
+    if not action or not stream_id:
+        raise ValueError("Both 'action' and 'stream_id' are required")
+
     result = supervisord_control(action, stream_id)
-    return jsonify(result)
+
+    # If called via Flask route (Ajax), return JSON
+    if request and request.is_json:
+        return jsonify(result)
+
+    # Otherwise, return plain Python result
+    return result
+
+def reset_stream(stub: str) -> None:
+    directory = os.path.join(current_app.config['STREAMS_ROOT'], stub)
+
+    if not os.path.exists(directory):
+        raise FileNotFoundError(f"Stream '{stub}' does not exist at {directory}")
+
+    try:
+        stream_control(action='stop', stream_id=stub)
+        # Reset source folder
+        source_dir = os.path.join(directory, "source")
+        if os.path.exists(source_dir):
+            shutil.rmtree(source_dir)
+        os.makedirs(source_dir, exist_ok=True)
+
+        # Delete all .log files at the top level
+        for file_path in glob.glob(os.path.join(directory, "*.log")):
+            os.remove(file_path)
+
+        stream_control(action='start', stream_id=stub)
+
+    except Exception as e:
+        raise RuntimeError(f"Failed to reset stream '{stub}': {e}") from e
+
 
 def delete_stream(stub):
     directory = os.path.join(current_app.config['STREAMS_ROOT'], stub)

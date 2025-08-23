@@ -34,9 +34,10 @@ Inspired by the power of community broadcasting.
 
 ## Building docker image
 
-### Local
+### Local dev environment
 
 docker build --build-arg FLASK_ENV=development . -t echoradio
+docker compose -f docker-compose-dev.yaml up -d
 
 ### Docker hub
 
