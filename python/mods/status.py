@@ -22,6 +22,10 @@ def status(stub):
                     "last_modified": datetime.fromtimestamp(stats.st_mtime)
                 })
 
+    latest_file = max(mp3_files, key=lambda f: f['last_modified']) if mp3_files else None
+    playing_file_path = get_now_playing(stub)
+    playing_file = os.path.basename(playing_file_path)  
+
     supervisor_status = get_process_info(stub)
     uptime = get_uptime_from_process_info(supervisor_status)
 
@@ -29,9 +33,22 @@ def status(stub):
         "status.html",
         stub=stub,
         mp3_files=mp3_files,
+        latest_file=latest_file,
+        playing_file=playing_file,
         supervisor_status=supervisor_status,
         uptime=uptime
     )
+
+def get_now_playing(stub):
+    log_path = f"/app/data/streams/{stub}/stream.log"
+    try:
+        with open(log_path, "r") as f:
+            # read the last non-empty line containing "Now streaming:"
+            for line in reversed(f.readlines()):
+                if "Now streaming:" in line:
+                    return line.split("Now streaming:")[-1].strip()
+    except FileNotFoundError:
+        return "Unknown"
 
 def view_log(stub, filename):
     if stub == '_server':

@@ -21,9 +21,15 @@
           {% if mp3_files %}
             <ul class="list-group">
               {% for file in mp3_files %}
-                <li class="list-group-item">
+                <li class="list-group-item
+                    {% if latest_file and file.name == latest_file.name %}list-group-item-warning{% endif %}
+                    {% if playing_file and file.name == playing_file %} bg-success text-white{% endif %}">
                   <div>
-                    <strong>{{ file.name }}</strong><br>
+                    <strong>
+                      {{ file.name }}
+                      {% if latest_file and file.name == latest_file.name %} - Recording{% endif %}
+                      {% if playing_file and file.name == playing_file %} - Playing{% endif %}
+                    </strong><br>
                     <small class="text-muted">
                       {{ file.size }} MB &middot;
                       Last modified: {{ file.last_modified.strftime('%Y-%m-%d %H:%M:%S') }}
