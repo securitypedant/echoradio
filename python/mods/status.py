@@ -1,11 +1,16 @@
 import os 
+import re
 import xmlrpc.client
 
 from datetime import datetime
-from flask import render_template, abort, send_file, current_app
+from flask import render_template, abort, send_file, current_app, send_from_directory
 from supervisor.xmlrpc import SupervisorTransport
 
 SUPERVISOR_SOCKET = "unix:///tmp/supervisor.sock"
+
+def serve_mp3(stub, filename):
+    directory = os.path.join("data", "streams", stub, "source")
+    return send_from_directory(directory, filename, mimetype="audio/mpeg")
 
 def status(stub):
     source_path = os.path.join(current_app.config['STREAMS_ROOT'], stub, 'source')
@@ -23,8 +28,7 @@ def status(stub):
                 })
 
     latest_file = max(mp3_files, key=lambda f: f['last_modified']) if mp3_files else None
-    playing_file_path = get_now_playing(stub)
-    playing_file = os.path.basename(playing_file_path)  
+    playing_file = get_now_playing(stub)
 
     supervisor_status = get_process_info(stub)
     uptime = get_uptime_from_process_info(supervisor_status)
@@ -43,10 +47,11 @@ def get_now_playing(stub):
     log_path = f"/app/data/streams/{stub}/stream.log"
     try:
         with open(log_path, "r") as f:
-            # read the last non-empty line containing "Now streaming:"
             for line in reversed(f.readlines()):
-                if "Now streaming:" in line:
-                    return line.split("Now streaming:")[-1].strip()
+                if "Switch to single." in line:
+                    match = re.search(r"single\.(\d+)", line)
+                    if match:
+                        return f"{match.group(1)}.mp3"
     except FileNotFoundError:
         return "Unknown"
 

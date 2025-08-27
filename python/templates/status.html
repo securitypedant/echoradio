@@ -10,32 +10,58 @@
       <h5 class="card-title">Stream: <strong>{{ stub }}</strong></h5>
 
       <div class="d-flex justify-content-start align-items-center gap-4 mb-4">
-        <p class="mb-0">Status: <strong>{{ supervisor_status.statename }}</strong></p>
+        <p class="mb-0">Status: <strong>{{ supervisor_status.statename|title }}</strong></p>
         <p class="mb-0">Uptime: <strong>{{ uptime }}</strong></p>
       </div>
 
       <div class="row">
         <!-- MP3 Source Files -->
         <div class="col-md-6 mb-4">
-          <h6>MP3 Source Files</h6>
           {% if mp3_files %}
             <ul class="list-group">
               {% for file in mp3_files %}
-                <li class="list-group-item
-                    {% if latest_file and file.name == latest_file.name %}list-group-item-warning{% endif %}
-                    {% if playing_file and file.name == playing_file %} bg-success text-white{% endif %}">
-                  <div>
-                    <strong>
-                      {{ file.name }}
-                      {% if latest_file and file.name == latest_file.name %} - Recording{% endif %}
-                      {% if playing_file and file.name == playing_file %} - Playing{% endif %}
-                    </strong><br>
-                    <small class="text-muted">
-                      {{ file.size }} MB &middot;
-                      Last modified: {{ file.last_modified.strftime('%Y-%m-%d %H:%M:%S') }}
-                    </small>
-                  </div>
-                </li>
+                
+            <li class="list-group-item d-flex justify-content-between align-items-center
+                {% if latest_file and file.name == latest_file.name %} list-group-item-warning{% endif %}
+                {% if playing_file and file.name == playing_file %} bg-success text-white{% endif %}">
+              
+              <div>
+                <strong>
+                  {{ file.name }}
+                  {% if latest_file and file.name == latest_file.name %} - Recording{% endif %}
+                  {% if playing_file and file.name == playing_file %} - Playing{% endif %}
+                </strong><br>
+                <small class="text-muted">
+                  {{ file.size }} MB &middot;
+                  Last modified: {{ file.last_modified.strftime('%Y-%m-%d %H:%M:%S') }}
+                </small>
+              </div>
+
+              <!-- Play button -->
+              <button class="btn btn-sm 
+                      {% if playing_file and file.name == playing_file %}
+                        btn-light
+                      {% else %}
+                        btn-outline-primary
+                      {% endif %}"
+                      type="button"
+                      data-bs-toggle="collapse"
+                      data-bs-target="#player-{{ loop.index }}"
+                      aria-expanded="false"
+                      aria-controls="player-{{ loop.index }}">
+                ▶
+              </button>
+            </li>
+
+            <!-- Collapsible audio player -->
+            <div class="collapse mt-2" id="player-{{ loop.index }}">
+              <audio controls style="width: 100%;">
+                <source src="{{ url_for('serve_mp3', stub=stub, filename=file.name) }}" type="audio/mpeg">
+                Your browser does not support the audio element.
+              </audio>
+            </div>
+
+
               {% endfor %}
             </ul>
           {% else %}
