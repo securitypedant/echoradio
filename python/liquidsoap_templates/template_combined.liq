@@ -10,6 +10,14 @@ on_shutdown(cleanup)
 radio_input_stream = input.http("$stream_input", user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36")
 radio_input_stream = mksafe(radio_input_stream)
 
+backup_bird_song = single("/app/liquidsoap_templates/birdsong.mp3")
+backup_bird_song_loop = cue_cut(backup_bird_song)
+
+backup_voice = single("/app/liquidsoap_templates/voice_message.mp3")
+backup_voice_loop = cue_cut(backup_voice)
+
+backup_silence = blank()
+
 output.file(
     %mp3,
     {time.string("/app/data/streams/$stream_stub/source/%H.mp3")},
@@ -45,7 +53,7 @@ twentythree = single('/app/data/streams/$stream_stub/source/23.mp3')
 
 $stream_switch_block
 
-output_icecast_stream = fallback(track_sensitive=false, [icecast_stream, radio_input_stream])
+output_icecast_stream = fallback(track_sensitive=false, [icecast_stream, $backup_track])
 
 output.icecast(fallible=true,
   %mp3,

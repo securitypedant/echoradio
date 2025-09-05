@@ -3,14 +3,31 @@ import re
 import xmlrpc.client
 
 from datetime import datetime
-from flask import render_template, abort, send_file, current_app, send_from_directory
+from flask import render_template, abort, send_file, current_app, Response
 from supervisor.xmlrpc import SupervisorTransport
 
 SUPERVISOR_SOCKET = "unix:///tmp/supervisor.sock"
 
 def serve_mp3(stub, filename):
     directory = os.path.join("data", "streams", stub, "source")
-    return send_from_directory(directory, filename, mimetype="audio/mpeg")
+    file_path = os.path.join(directory, filename)
+
+    # Open the file in binary mode
+    def generate():
+        with open(file_path, "rb") as f:
+            chunk = f.read(8192)
+            while chunk:
+                yield chunk
+                chunk = f.read(8192)
+
+    return Response(
+        generate(),
+        mimetype="audio/mpeg",
+        headers={
+            "Content-Disposition": 'inline; filename="%s"' % filename,
+            "Accept-Ranges": "bytes"
+        }
+    )
 
 def status(stub):
     source_path = os.path.join(current_app.config['STREAMS_ROOT'], stub, 'source')

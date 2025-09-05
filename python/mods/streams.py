@@ -48,6 +48,7 @@ def create_stream_script(stub, metadata, template="template_combined.liq"):
         "stream_name": metadata['name'],
         "stream_description": metadata['description'],
         "stream_mount": metadata['stub'],
+        "backup_track": metadata['backup_track'],
         "stream_switch_block": generate_stream_switch_block(delay)
     })
 

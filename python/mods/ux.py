@@ -60,6 +60,7 @@ def home():
             stream_description = request.form.get('stream_description')
             source_tz = request.form.get('source_tz')
             target_tz = request.form.get('target_tz')
+            backup_track = request.form.get('backup_track')
 
             stream_stub = make_stub_name(stream_name)
 
@@ -70,7 +71,8 @@ def home():
                 "status": "STOPPED",
                 "description": stream_description,
                 "source_timezone": source_tz,
-                "target_timezone": target_tz
+                "target_timezone": target_tz,
+                "backup_track": backup_track
             }
 
             save_stream_metadata(stream_stub, stream_data)
@@ -88,7 +90,8 @@ def home():
                 stream_description = request.form.get('stream_description')
                 source_tz = request.form.get('source_tz')
                 target_tz = request.form.get('target_tz')
-                stream_stub = request.form.get('stub')   
+                stream_stub = request.form.get('stub')
+                backup_track = request.form.get('backup_track')
 
                 stream_data = {
                     "name": stream_name,
@@ -97,7 +100,8 @@ def home():
                     "status": stream_status,
                     "description": stream_description,
                     "source_timezone": source_tz,
-                    "target_timezone": target_tz
+                    "target_timezone": target_tz,
+                    "backup_track": backup_track
                 }
 
                 if stream_status == "RUNNING":

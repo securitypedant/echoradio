@@ -21,9 +21,21 @@
           </div>
         </div>
 
-        <div class="mb-3">
-          <label for="stream_description" class="form-label">Stream Description</label>
-          <input type="text" class="form-control" id="stream_description" name="stream_description" value="{{ stream_data.description }}" required>
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label for="stream_description" class="form-label">Stream Description</label>
+            <input type="text" class="form-control" id="stream_description" name="stream_description" value="{{ stream_data.description }}" required>
+          </div>   
+
+          <div class="col-md-6 mb-3">
+            <label for="backup_track" class="form-label">Backup Track</label>
+            <select class="form-select" id="backup_track" name="backup_track" required>
+              <option value="radio_input_stream" {% if stream_data.backup_track == "radio_input_stream" %}selected{% endif %}>Live stream</option>
+              <option value="backup_bird_song_loop" {% if stream_data.backup_track == "backup_bird_song_loop" %}selected{% endif %}>Bird song</option>
+              <option value="backup_voice_loop" {% if stream_data.backup_track == "backup_voice_loop" %}selected{% endif %}>Voice message</option>
+              <option value="backup_silence" {% if stream_data.backup_track == "backup_silence" %}selected{% endif %}>Silence</option>
+            </select>
+          </div>
         </div>
 
         <div class="row">

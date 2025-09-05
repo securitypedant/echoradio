@@ -54,7 +54,7 @@
 
             <!-- Collapsible audio player -->
             <div class="collapse mt-2" id="player-{{ loop.index }}">
-              <audio controls style="width: 100%;">
+              <audio controls preload="none" style="width: 100%;">
                 <source src="{{ url_for('serve_mp3', stub=stub, filename=file.name) }}" type="audio/mpeg">
                 Your browser does not support the audio element.
               </audio>
