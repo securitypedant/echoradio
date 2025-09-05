@@ -76,6 +76,17 @@
       <button type="submit" class="btn btn-success">Save Configuration</button>
       <a href="{{ url_for('home') }}" class="btn btn-outline-secondary">Back</a>
     </form>
+    
+    <form method="POST" action="{{ url_for('import_config') }}" enctype="multipart/form-data" class="d-inline">
+      <a href="{{ url_for('download_config') }}" class="btn btn-outline-secondary mt-3">
+        <i class="bi bi-download"></i> Download Config
+      </a>
+      <label for="config_file" class="btn btn-outline-secondary mb-0 mt-3">
+        <i class="bi bi-upload"></i> Import Config
+      </label>
+      <input type="file" id="config_file" name="config_file" accept=".zip" style="display: none;" onchange="this.form.submit()">
+    </form>
+    
     {% if not first_use %}
     <h6 class="py-3">Logs</h6>
     <ul class="list-group">
