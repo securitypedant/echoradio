@@ -31,6 +31,7 @@ from mods.streams import (load_all_streams,
 from mods.supervisord import supervisord_control, delete_stream_supervisor_config, create_stream_supervisor_config
 
 from mods.auth import auth_required
+from mods.logger import logger
 
 def home():
     stream_data = {}
@@ -75,6 +76,7 @@ def home():
                 "backup_track": backup_track
             }
 
+            logger.info(f"Creating new stream: {stream_name} ({stream_stub})")
             save_stream_metadata(stream_stub, stream_data)
             create_stream_script(stream_stub, stream_data)
             create_stream_supervisor_config(stream_data)
@@ -108,6 +110,7 @@ def home():
                     # Stop the stream first before updating the config.
                     supervisord_control('stop', stream_stub)
 
+                logger.info(f"Updating stream: {stream_name} ({stream_stub})")
                 create_stream_script(stream_stub, stream_data)            
                 save_stream_metadata(stream_stub, stream_data)
 
@@ -119,6 +122,7 @@ def home():
             stub = request.form.get('stub')
             if stub:
                 try:
+                    logger.info(f"Deleting stream: {stub}")
                     delete_stream(stub)
                     flash(f"Stream '{stub}' deleted successfully.", 'success')
                 except FileNotFoundError as e:
@@ -132,6 +136,7 @@ def home():
             stub = request.form.get('stub')
             if stub:
                 try:
+                    logger.info(f"Resetting stream: {stub}")
                     reset_stream(stub)
                     flash(f"Stream '{stub}' reset successfully.", 'success')
                 except FileNotFoundError as e:
@@ -171,6 +176,7 @@ def stream_control(action=None, stream_id=None):
     if not action or not stream_id:
         raise ValueError("Both 'action' and 'stream_id' are required")
 
+    logger.info(f"Going to {action} stream {stream_id}")
     result = supervisord_control(action, stream_id)
 
     # If called via Flask route (Ajax), return JSON
@@ -248,6 +254,7 @@ def configure_server(request):
         "icecast_max_sources": icecast_max_sources
     }
 
+    logger.info(f"Updating Icecast server configuration.")
     update_icecast_config(
                         icecast_public_hostname=icecast_public_hostname,
                         icecast_public_port=icecast_public_port,
@@ -256,8 +263,10 @@ def configure_server(request):
                         icecast_max_sources=icecast_max_sources
                     )
     
+    logger.info(f"Updating Liquidstream configurations.")
     update_liquidstream_configs(icecast_source_password=icecast_source_password)
 
+    logger.info(f"Saving Echo Radio configuration.")
     with open(current_app.config['SERVER_CONFIG_FILE'], 'w') as f:
         json.dump(config, f, indent=4)
 

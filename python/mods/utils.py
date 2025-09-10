@@ -9,6 +9,7 @@ from zoneinfo import available_timezones
 from flask import current_app, send_file, flash, request, redirect, url_for
 
 from mods.supervisord import supervisord_control
+from mods.logger import logger
 
 DATA_FOLDER = "data"
 
@@ -30,6 +31,7 @@ def download_config():
                 zf.write(full_path, rel_path)
 
     memory_file.seek(0)
+    logger.info(f"Exporting server configuration.")
     return send_file(
         memory_file,
         as_attachment=True,
@@ -49,6 +51,7 @@ def import_config():
     file.save(zip_path)
 
     # Extract with overwrite, skip mp3/log files
+    logger.info(f"Importing server configuration...")
     with zipfile.ZipFile(zip_path, 'r') as zip_ref:
         for member in zip_ref.namelist():
             # Skip mp3 and log files
@@ -67,6 +70,7 @@ def import_config():
             with zip_ref.open(member) as source, open(target_path, "wb") as target:
                 target.write(source.read())
 
+    logger.info(f"Configuration imported successfully (existing files overwritten).")
     flash("Configuration imported successfully (existing files overwritten).", "success")
     return redirect(url_for('settings'))
 

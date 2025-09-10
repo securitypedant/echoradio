@@ -4,6 +4,8 @@ import bcrypt
 from flask import render_template, session, redirect, url_for, flash, request, current_app
 from functools import wraps
 
+from mods.logger import logger
+
 def auth():
     if request.method == 'POST':
         admin_password = request.form.get('admin_password')
@@ -30,6 +32,7 @@ def check_admin_password(password):
 
 def logout():
     session.pop('logged_in', None)
+    logger.info(f"Admin logged out successfully.")
     flash('Logged out successfully', 'success')
     return redirect(url_for('home'))
 
@@ -39,6 +42,7 @@ def login():
 
         if admin_password and check_admin_password(admin_password):
             session['logged_in'] = True
+            logger.info(f"Admin logged in successfully.")
             return redirect(url_for('home'))
 
         flash('Invalid password', 'danger')

@@ -91,6 +91,9 @@
     <h6 class="py-3">Logs</h6>
     <ul class="list-group">
       <li class="list-group-item">
+        <a href="{{ url_for('view_log', stub='_server', filename='echo_radio.log') }}" target="_blank">Echo Radio app log</a>
+      </li>      
+      <li class="list-group-item">
         <a href="{{ url_for('view_log', stub='_server', filename='supervisord.log') }}" target="_blank">Supervisord output - (supervisord.log)</a>
       </li>
       <li class="list-group-item">

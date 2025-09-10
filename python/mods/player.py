@@ -12,6 +12,6 @@ def player(stub):
         metadata = json.load(f)
     return render_template(
         "player.html",
-        stream=metadata
-        ,icecast_public_hostname=f"{current_app.config['ICECAST_PUBLIC_PROTOCOL']}://{current_app.config['ICECAST_PUBLIC_HOSTNAME']}:{current_app.config['ICECAST_PUBLIC_PORT']}",
+        stream=metadata,
+        icecast_public_hostname=f"{current_app.config['ICECAST_PUBLIC_PROTOCOL']}://{current_app.config['ICECAST_PUBLIC_HOSTNAME']}:{current_app.config['ICECAST_PUBLIC_PORT']}",
         )
