@@ -1,11 +1,78 @@
 import os 
 import re
+import io
 import json
+import zipfile
+import tempfile
 
 from zoneinfo import available_timezones
-from flask import current_app
+from flask import current_app, send_file, flash, request, redirect, url_for
 
 from mods.supervisord import supervisord_control
+from mods.logger import logger
+
+DATA_FOLDER = "data"
+
+def download_config():
+    base_dir = DATA_FOLDER
+    memory_file = io.BytesIO()
+
+    with zipfile.ZipFile(memory_file, "w", zipfile.ZIP_DEFLATED) as zf:
+        for root, dirs, files in os.walk(base_dir):
+            # skip the logs directory entirely
+            if "logs" in root:
+                continue
+            for file in files:
+                # skip MP3 and log-like files
+                if file.endswith((".mp3", ".log", ".gz")):
+                    continue
+                full_path = os.path.join(root, file)
+                rel_path = os.path.relpath(full_path, base_dir)  # keep relative structure
+                zf.write(full_path, rel_path)
+
+    memory_file.seek(0)
+    logger.info(f"Exporting server configuration.")
+    return send_file(
+        memory_file,
+        as_attachment=True,
+        download_name="server_config.zip",
+        mimetype="application/zip"
+    )
+
+def import_config():
+    file = request.files.get('config_file')
+    if not file or not file.filename.endswith('.zip'):
+        flash("Invalid file. Please upload a .zip file.", "danger")
+        return redirect(url_for('settings'))
+
+    # Save to temp file
+    tempdir = tempfile.mkdtemp()
+    zip_path = os.path.join(tempdir, file.filename)
+    file.save(zip_path)
+
+    # Extract with overwrite, skip mp3/log files
+    logger.info(f"Importing server configuration...")
+    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        for member in zip_ref.namelist():
+            # Skip mp3 and log files
+            if member.endswith(".mp3") or member.endswith(".log") or ".log." in member:
+                continue
+
+            # Protect against zip-slip (malicious paths)
+            target_path = os.path.abspath(os.path.join(DATA_FOLDER, member))
+            if not target_path.startswith(os.path.abspath(DATA_FOLDER)):
+                continue
+
+            # Ensure target directory exists
+            os.makedirs(os.path.dirname(target_path), exist_ok=True)
+
+            # Extract & overwrite
+            with zip_ref.open(member) as source, open(target_path, "wb") as target:
+                target.write(source.read())
+
+    logger.info(f"Configuration imported successfully (existing files overwritten).")
+    flash("Configuration imported successfully (existing files overwritten).", "success")
+    return redirect(url_for('settings'))
 
 # Group timezones by region prefix (e.g., 'America', 'Europe')
 def get_grouped_timezones():

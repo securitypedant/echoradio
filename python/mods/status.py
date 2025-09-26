@@ -1,11 +1,33 @@
 import os 
+import re
 import xmlrpc.client
 
 from datetime import datetime
-from flask import render_template, abort, send_file, current_app
+from flask import render_template, abort, send_file, current_app, Response
 from supervisor.xmlrpc import SupervisorTransport
 
 SUPERVISOR_SOCKET = "unix:///tmp/supervisor.sock"
+
+def serve_mp3(stub, filename):
+    directory = os.path.join("data", "streams", stub, "source")
+    file_path = os.path.join(directory, filename)
+
+    # Open the file in binary mode
+    def generate():
+        with open(file_path, "rb") as f:
+            chunk = f.read(8192)
+            while chunk:
+                yield chunk
+                chunk = f.read(8192)
+
+    return Response(
+        generate(),
+        mimetype="audio/mpeg",
+        headers={
+            "Content-Disposition": 'inline; filename="%s"' % filename,
+            "Accept-Ranges": "bytes"
+        }
+    )
 
 def status(stub):
     source_path = os.path.join(current_app.config['STREAMS_ROOT'], stub, 'source')
@@ -22,6 +44,9 @@ def status(stub):
                     "last_modified": datetime.fromtimestamp(stats.st_mtime)
                 })
 
+    latest_file = max(mp3_files, key=lambda f: f['last_modified']) if mp3_files else None
+    playing_file = get_now_playing(stub)
+
     supervisor_status = get_process_info(stub)
     uptime = get_uptime_from_process_info(supervisor_status)
 
@@ -29,9 +54,23 @@ def status(stub):
         "status.html",
         stub=stub,
         mp3_files=mp3_files,
+        latest_file=latest_file,
+        playing_file=playing_file,
         supervisor_status=supervisor_status,
         uptime=uptime
     )
+
+def get_now_playing(stub):
+    log_path = f"/app/data/streams/{stub}/stream.log"
+    try:
+        with open(log_path, "r") as f:
+            for line in reversed(f.readlines()):
+                if "Switch to single." in line:
+                    match = re.search(r"single\.(\d+)", line)
+                    if match:
+                        return f"{match.group(1)}.mp3"
+    except FileNotFoundError:
+        return "Unknown"
 
 def view_log(stub, filename):
     if stub == '_server':

@@ -19,6 +19,15 @@ RUN apt-get update && apt-get install -y \
     libavcodec-dev libavdevice-dev libavfilter-dev libavformat-dev libavutil-dev libswresample-dev libswscale-dev
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Install and configure logrotation
+RUN apt-get update && apt-get install -y logrotate
+COPY logrotate_configs/iceandsuper /etc/logrotate.d/iceandsuper
+COPY logrotate_configs/streams /etc/logrotate.d/streams
+
+# Configure supervisord, cron
+RUN apt-get update && apt-get install -y cron
+COPY supervisord.conf /etc/supervisord.conf
+
 # Create a non-root user
 RUN useradd -m -s /bin/bash streamer && \
     mkdir -p /app/data/logs/
@@ -56,14 +65,6 @@ RUN rm -rf /app/data/streams /app/data/supervisord_configs
 RUN if [ "$FLASK_ENV" = "development" ]; then pip install --break-system-packages debugpy; fi
 
 USER root
-# Install and configure logrotation
-RUN apt-get update && apt-get install -y logrotate
-COPY logrotate_configs/iceandsuper /etc/logrotate.d/iceandsuper
-COPY logrotate_configs/streams /etc/logrotate.d/streams
-
-# Configure supervisord, cron
-RUN apt-get update && apt-get install -y cron
-COPY supervisord.conf /etc/supervisord.conf
 # Make sure streamer owns the /app directory
 RUN chmod +x /app/start_flask.sh
 RUN chown -R streamer:streamer /app
