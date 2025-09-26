@@ -1,16 +1,43 @@
 {% extends "base.html" %}
+
+{% block title %}About Echo Radio{% endblock %}
+
 {% block content %}
-<div class="container">
+<div class="container py-5">
     <div class="card shadow-sm">
-        <div class="card-body">
-            <h5 class="card-title"><i class="bi bi-soundwave pe-2"></i><span class="kaushan-script-regular">Echo Radio</span></h5>
-            <ol>
-                <li>Click on "Add Stream" to create a new stream.</li>
-                <li>Fill in the required details such as Stream Name, URL, and Timezones.</li>
-                <li>Once added, you can view and manage your streams from the main dashboard.</li>
-                <li>For any issues, refer to the documentation or contact support.</li>
-            </ol>
+    <div class="card-body">
+        <div class="text-center mt-3 mb-3 d-flex justify-content-center align-items-center">
+            <i class="bi bi-soundwave fs-1 pe-2"></i>
+            <h1 class="display-4 fw-bold mb-0">About Echo Radio</h1>
         </div>
-    </div>    
+        <p class="lead text-muted text-center">
+            Listening to your favorite streams, anytime, anywhere.
+        </p>
+
+        <div class="row justify-content-center align-items-center">
+            <div class="col-md-8">
+                <h2 class="h4 mt-4">Why I Built This</h2>
+                    <p>
+                        Echo Radio is a passion project built to help people Listen to their favorite radio stations
+                        in their local timezone. Built by an Englishman living in San Francisco who really missed waking up 
+                        to his favorite UK radio shows.
+                    </p>
+
+                <h2 class="h4 mt-4">How It Works</h2>
+                    <ul>
+                        <li>Streams are recorded and saved locally each hour.</li>
+                        <li>The recorded audio is then played back in your chosen timezone.</li>
+                        <li>Add multiple streams and play them back from a simple web interface.</li>
+                    </ul>
+                <h2 class="h4 mt-4">Why "Echo"?</h2>
+                <p>Because sometimes the delay from an echo is exactly what you need...</p>
+            </div>
+        </div>
+
+        <div class="text-center mt-5">
+            <a href="/" class="btn btn-primary btn-lg">Back to live radio</a>
+        </div>
+        </div>
+    </div>
 </div>
 {% endblock %}

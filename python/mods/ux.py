@@ -165,6 +165,9 @@ def home():
                            icecast_public_hostname=f"{current_app.config['ICECAST_PUBLIC_PROTOCOL']}://{current_app.config['ICECAST_PUBLIC_HOSTNAME']}:{current_app.config['ICECAST_PUBLIC_PORT']}",
                         )
 
+def about():
+    return render_template("about.html")
+
 def stream_control(action=None, stream_id=None):
     """Control a stream either from server code or an Ajax request."""
     # If no parameters sent, assume we're being called from an Ajax request
