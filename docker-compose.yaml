@@ -3,8 +3,15 @@ services:
     image: simonsecuritypedant/echoradio:latest
     container_name: echoradio
     ports:
-      - "8000:8000"   # Icecast
-      - "8080:8080"   # Flask app
+      - "8080:8080"   # Web UI, web player, HLS and /listen/<stream> icecast relay (single port)
+      - "8000:8000"   # Optional: direct Icecast access
+    volumes:
+      - echoradio_data:/app/data
     restart: unless-stopped
     environment:
       - FLASK_ENV=production
+      # - SECRET_KEY=change-me          # optional; a random key is generated and persisted in the data volume otherwise
+      # - PUBLIC_BASE_URL=https://radio.example.com   # optional; used for the copyable stream URLs
+
+volumes:
+  echoradio_data:

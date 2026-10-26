@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if mode == 'edit' else 'Add' }} stream · Echo Radio{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-9 col-xl-8">
+    <a href="{{ url_for('home') }}" class="btn btn-link px-0 mb-2"><i class="bi bi-arrow-left"></i> Back to streams</a>
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+          <h1 class="h4 mb-0">{{ 'Edit stream' if mode == 'edit' else 'Add a stream' }}</h1>
+          <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#directoryModal"><i class="bi bi-search me-1"></i>Browse stations</button>
+        </div>
+        <form method="post" id="streamForm" novalidate>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+          <div class="row g-3">
+            <div class="col-md-5">
+              <label for="stream_name" class="form-label">Name</label>
+              <input type="text" class="form-control" id="stream_name" name="stream_name" maxlength="80" required
+                     value="{{ stream.name or '' }}" placeholder="BBC Radio 2">
+            </div>
+            <div class="col-md-7">
+              <label for="stream_url" class="form-label">Stream URL</label>
+              <div class="input-group">
+                <input type="url" class="form-control" id="stream_url" name="stream_url" required
+                       value="{{ stream.url or '' }}" placeholder="https://… (MP3, AAC or HLS .m3u8)">
+                <button class="btn btn-outline-secondary" type="button" id="testUrl"><i class="bi bi-plug"></i> Test</button>
+              </div>
+              <div class="form-text" id="testUrlResult">Any URL VLC can play usually works: MP3/AAC streams or HLS playlists.</div>
+            </div>
+            <div class="col-md-7">
+              <label for="stream_description" class="form-label">Description <span class="text-body-secondary">(optional)</span></label>
+              <input type="text" class="form-control" id="stream_description" name="stream_description" maxlength="200"
+                     value="{{ stream.description or '' }}" placeholder="The UK's most listened-to station">
+            </div>
+            <div class="col-md-5">
+              <label for="stream_mount" class="form-label">URL name <span class="text-body-secondary">(optional)</span></label>
+              <div class="input-group">
+                <span class="input-group-text">/listen/</span>
+                <input type="text" class="form-control" id="stream_mount" name="stream_mount" maxlength="41" pattern="[a-z0-9][a-z0-9_-]*"
+                       value="{{ stream.mount if stream.mount and stream.mount != stream.stub else '' }}" placeholder="{{ stream.stub or 'from the name' }}">
+              </div>
+              <div class="form-text">Lowercase letters, digits, dashes. Used in the MP3, HLS and player links.</div>
+            </div>
+            <div class="col-12">
+              <label for="artwork_url" class="form-label">Artwork <span class="text-body-secondary">(optional image URL)</span></label>
+              <div class="d-flex gap-2 align-items-center">
+                <img id="artworkPreview" src="{{ stream.artwork_url or '' }}" alt="" class="artwork-preview {% if not stream.artwork_url %}d-none{% endif %}">
+                <input type="url" class="form-control" id="artwork_url" name="artwork_url" maxlength="500"
+                       value="{{ stream.artwork_url or '' }}" placeholder="https://… station logo (shown on cards, the player and the lock screen)">
+              </div>
+              <div class="form-text">Internet radio streams cannot carry images, so radios use their own directories for logos; the web player and phone lock screen use this one.</div>
+            </div>
+          </div>
+
+          <hr class="my-4">
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label for="source_tz" class="form-label"><i class="bi bi-broadcast-pin me-1"></i>Station timezone</label>
+              <select id="source_tz" name="source_tz" class="form-select" required placeholder="Search a city…">
+                <option value="">Search a city…</option>
+                {% for region, zones in timezones.items() %}
+                <optgroup label="{{ region }}">
+                  {% for tz in zones %}<option value="{{ tz }}" {% if stream.source_timezone == tz %}selected{% endif %}>{{ tz.replace('_', ' ') }}</option>{% endfor %}
+                </optgroup>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label for="target_tz" class="form-label"><i class="bi bi-house-door me-1"></i>Your timezone</label>
+              <select id="target_tz" name="target_tz" class="form-select" required placeholder="Search a city…">
+                <option value="">Search a city…</option>
+                {% for region, zones in timezones.items() %}
+                <optgroup label="{{ region }}">
+                  {% for tz in zones %}<option value="{{ tz }}" {% if stream.target_timezone == tz %}selected{% endif %}>{{ tz.replace('_', ' ') }}</option>{% endfor %}
+                </optgroup>
+                {% endfor %}
+              </select>
+              <div class="form-text"><button type="button" class="btn btn-link btn-sm p-0" id="useMyTz">Use this device's timezone</button></div>
+            </div>
+            <div class="col-12">
+              <div class="alert alert-info d-flex gap-3 align-items-center mb-0" id="delayPreview" role="status">
+                <i class="bi bi-clock-history fs-4"></i>
+                <div id="delayPreviewText">Pick both timezones to see the delay.</div>
+              </div>
+            </div>
+          </div>
+
+          <hr class="my-4">
+
+          <div class="row g-3">
+            <div class="col-md-7">
+              <label class="form-label d-block">When nothing was recorded, play</label>
+              {% for key, label in backup_kinds.items() %}
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="backup_track" id="backup_{{ key }}" value="{{ key }}"
+                       {% if (stream.backup_track or 'birdsong') == key %}checked{% endif %}>
+                <label class="form-check-label" for="backup_{{ key }}">{{ label }}
+                  {% if key in ('birdsong', 'voice') %}<button type="button" class="btn btn-link btn-sm p-0 ms-1 preview-audio" data-src="{{ url_for('fallback_preview', kind=key) }}" title="Preview"><i class="bi bi-volume-up"></i></button>{% endif %}
+                </label>
+              </div>
+              {% endfor %}
+              <div class="form-text">Used for gaps while the buffer fills, or when the station was unreachable. “Live stream” plays the station live instead.</div>
+            </div>
+            <div class="col-md-5">
+              <label for="bitrate" class="form-label">Recording quality</label>
+              <select class="form-select" id="bitrate" name="bitrate">
+                {% for b in bitrates %}<option value="{{ b }}" {% if (stream.bitrate or '128k') == b %}selected{% endif %}>AAC {{ b[:-1] }} kbit/s{% if b == '128k' %} (recommended){% endif %}</option>{% endfor %}
+              </select>
+              <div class="form-text">About <span id="diskEstimate">57</span> MB per hour on disk.</div>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>{{ 'Save changes' if mode == 'edit' else 'Add stream' }}</button>
+            <a href="{{ url_for('home') }}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+          {% if mode == 'new' %}<div class="form-text mt-3">Creating a stream prepares its fallback audio, which takes a few seconds.</div>{% endif %}
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+<audio id="previewPlayer" preload="none"></audio>
+
+<!-- Station directory -->
+<div class="modal fade" id="directoryModal" tabindex="-1" aria-labelledby="directoryTitle" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="directoryTitle"><i class="bi bi-broadcast me-2"></i>Find a station</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="input-group mb-2">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="search" class="form-control" id="dirSearch" placeholder="Station name, e.g. Radio 2, KEXP, Triple J…" autocomplete="off">
+        </div>
+        <div class="d-flex flex-wrap gap-2 small mb-3">
+          <button type="button" class="btn btn-sm btn-outline-secondary dir-quick" data-q="bbc">All BBC stations</button>
+          <span class="text-body-secondary align-self-center">Results come from a curated BBC list and the community <a href="https://www.radio-browser.info" target="_blank" rel="noopener">Radio Browser</a> index.</span>
+        </div>
+        <div id="dirStatus" class="text-body-secondary small mb-2">Type to search.</div>
+        <div class="list-group" id="dirResults"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js" defer></script>
+<script src="{{ asset_url('js/stream_form.js') }}" defer></script>
+{% endblock %}

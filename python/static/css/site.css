@@ -1,14 +1,160 @@
-/* Site wide CSS */
-body {
-    background-color: #dcf2f7;
+/* Echo Radio site styles. Bootstrap 5.3 provides the base; these are brand tokens and components. */
+:root {
+  --er-navy: #12172d;
+  --er-navy-2: #1d2547;
+  --er-accent: #1aa6b7;
+  --er-bg: #eef6f9;
+  --er-card: #ffffff;
+  --er-rec: #e0245e;
+  --er-warn: #e9a23b;
+  --bs-body-bg: var(--er-bg);
+  --bs-primary: var(--er-accent);
+  --bs-primary-rgb: 26, 166, 183;
+  --bs-link-color: #137f8c;
+  --bs-link-hover-color: #0f6670;
+}
+[data-bs-theme="dark"] {
+  --er-bg: #0f1424;
+  --er-card: #171d33;
+  --bs-body-bg: var(--er-bg);
+  --bs-link-color: #5fd0dd;
+  --bs-link-hover-color: #8fe0e9;
 }
 
-.kaushan-script-regular {
-    font-family: "Kaushan Script", cursive;
-    font-weight: 400;
-    font-style: normal;
-  }
-  
-  .nav-bg {
-    background-color: #12172d;
+body { background: var(--er-bg); min-height: 100vh; }
+.card { background: var(--er-card); border: 1px solid rgba(0,0,0,.06); }
+[data-bs-theme="dark"] .card { border-color: rgba(255,255,255,.08); }
+
+.btn-primary {
+  --bs-btn-bg: var(--er-accent); --bs-btn-border-color: var(--er-accent);
+  --bs-btn-hover-bg: #158e9d; --bs-btn-hover-border-color: #158e9d;
+  --bs-btn-active-bg: #117b88; --bs-btn-active-border-color: #117b88;
+  --bs-btn-disabled-bg: var(--er-accent); --bs-btn-disabled-border-color: var(--er-accent);
 }
+
+.er-nav { background: linear-gradient(90deg, var(--er-navy), var(--er-navy-2)); }
+.er-nav .nav-link.btn-link { color: rgba(255,255,255,.75); text-decoration: none; }
+.er-nav .nav-link.btn-link:hover { color: #fff; }
+.brand-font { font-family: "Kaushan Script", cursive; font-weight: 400; letter-spacing: .5px; }
+.min-w-0 { min-width: 0; }
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* Stream cards */
+.stream-card { border-top: 4px solid var(--bs-secondary); transition: box-shadow .15s ease; }
+.stream-card:hover { box-shadow: 0 .5rem 1.25rem rgba(0,0,0,.12) !important; }
+/* Keep an open Manage menu above neighbouring cards (no transforms: they would trap the z-index). */
+.stream-card .dropdown-menu { z-index: 1050; }
+#stream-grid > [id^="card-"]:has(.dropdown-menu.show) { position: relative; z-index: 1040; }
+.stream-card.status-recording { border-top-color: var(--er-rec); }
+.stream-card.status-source_down { border-top-color: var(--er-warn); }
+.stream-card.status-starting { border-top-color: var(--er-accent); }
+.status-badge { background: var(--bs-secondary); color: #fff; font-weight: 500; }
+.status-recording .status-badge, .status-badge.status-recording { background: var(--er-rec); }
+.status-source_down .status-badge, .status-badge.status-source_down { background: var(--er-warn); color: #222; }
+.status-starting .status-badge, .status-badge.status-starting { background: var(--er-accent); }
+.blink { animation: blink 1.4s ease-in-out infinite; }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+
+.tz-chip { display: inline-flex; align-items: center; gap: .35rem; padding: .15rem .5rem; border-radius: 999px; background: rgba(26,166,183,.12); }
+[data-bs-theme="dark"] .tz-chip { background: rgba(26,166,183,.22); }
+
+.buffer-strip { display: flex; gap: 2px; height: 10px; }
+.buffer-strip .cell { flex: 1; border-radius: 2px; background: rgba(26,166,183, calc(.12 + var(--fill, 0) * .88)); }
+[data-bs-theme="dark"] .buffer-strip .cell { background: rgba(95,208,221, calc(.12 + var(--fill, 0) * .88)); }
+.coverage-bars { display: flex; gap: 2px; align-items: flex-end; height: 48px; }
+.coverage-bars .bar { flex: 1; border-radius: 2px 2px 0 0; height: calc(4px + var(--fill, 0) * 44px); background: rgba(26,166,183, calc(.25 + var(--fill, 0) * .75)); }
+
+.empty-state { background: var(--er-card); }
+.welcome-card { border-left: 4px solid var(--er-accent); }
+
+.log-view { max-height: 360px; overflow: auto; padding: 1rem; font-size: .8rem; background: #0d1117; color: #c9d1d9; white-space: pre-wrap;
+  border-radius: 0 0 var(--bs-card-border-radius) var(--bs-card-border-radius); }
+
+/* Player */
+.player-art { width: 96px; height: 96px; border-radius: 28px; display: grid; place-items: center; font-size: 2.6rem; color: #fff;
+  background: linear-gradient(135deg, var(--er-accent), var(--er-navy-2)); box-shadow: 0 .75rem 1.5rem rgba(26,166,183,.25); }
+.btn-play { width: 76px; height: 76px; border-radius: 50%; font-size: 2.2rem; display: inline-grid; place-items: center; padding: 0; }
+.btn-play.is-playing { background: var(--er-navy-2); border-color: var(--er-navy-2); }
+.timeline .form-range::-webkit-slider-thumb { background: var(--er-accent); }
+.timeline .form-range::-moz-range-thumb { background: var(--er-accent); }
+.volume .form-range { width: 140px; }
+#liveBadge.is-live { background: var(--er-rec) !important; color: #fff; }
+#liveBadge.is-rewound { background: var(--er-navy-2) !important; color: #fff; }
+
+@media (max-width: 575.98px) {
+  .btn-play { width: 64px; height: 64px; font-size: 1.9rem; }
+  .volume .form-range { width: 110px; }
+}
+
+/* Log viewer */
+.log-view-tall { max-height: calc(100vh - 330px); min-height: 320px; white-space: pre; line-height: 1.45; }
+.log-view-tall.log-wrap { white-space: pre-wrap; word-break: break-word; }
+.log-view mark { background: #ffd43b; color: #000; padding: 0 1px; border-radius: 2px; }
+.log-view .log-err { color: #ff8b8b; }
+
+/* Tom Select (timezone pickers): readable in light and dark mode, obvious selection */
+.ts-wrapper .ts-control, .ts-wrapper.single .ts-control, .ts-wrapper.focus .ts-control,
+.ts-dropdown, .ts-dropdown .dropdown-input {
+  background-color: var(--bs-body-bg) !important; color: var(--bs-body-color) !important; border-color: var(--bs-border-color) !important;
+}
+.ts-wrapper.single .ts-control > .item { color: var(--bs-body-color) !important; font-weight: 600; }
+.ts-wrapper.single .ts-control > .item::before { content: "\F3E8"; font-family: "bootstrap-icons"; color: var(--er-accent); margin-right: .4rem; font-weight: 400; }
+.ts-wrapper.focus .ts-control { border-color: var(--er-accent) !important; box-shadow: 0 0 0 .25rem rgba(26,166,183,.25) !important; }
+.ts-dropdown .option { color: var(--bs-body-color) !important; background-color: transparent; }
+.ts-dropdown .option.active, .ts-dropdown .option.selected.active { background-color: var(--er-accent) !important; color: #fff !important; }
+.ts-dropdown .option.selected { background-color: rgba(26,166,183,.18) !important; color: var(--bs-body-color) !important; font-weight: 600; }
+.ts-dropdown .option.selected::after { content: "\F26A"; font-family: "bootstrap-icons"; float: right; color: var(--er-accent); }
+.ts-dropdown .optgroup-header { color: var(--bs-secondary-color) !important; background-color: var(--bs-tertiary-bg) !important; font-weight: 600; }
+.ts-dropdown .highlight { background: rgba(255,212,59,.65) !important; color: inherit !important; border-radius: 2px; }
+[data-bs-theme="dark"] .ts-dropdown .highlight { background: rgba(255,212,59,.35) !important; }
+
+/* Stream cards on phones: name and Listen button first */
+.listen-mobile { font-size: 1.15rem; padding: .8rem; }
+@media (max-width: 767.98px) {
+  .stream-card .card-title { font-size: 1.35rem; white-space: normal; }
+  .stream-card .tz-row { font-size: .8rem; }
+}
+
+/* Autoplay fallback overlay on the player */
+.tap-to-play { position: absolute; inset: 0; z-index: 5; border: 0; border-radius: var(--bs-card-border-radius); cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .5rem; color: #fff;
+  background: linear-gradient(160deg, rgba(18,23,45,.92), rgba(26,166,183,.88)); backdrop-filter: blur(3px); }
+.tap-to-play .tap-icon { width: 96px; height: 96px; border-radius: 50%; background: #fff; color: var(--er-navy); display: grid; place-items: center; font-size: 3rem; box-shadow: 0 .75rem 2rem rgba(0,0,0,.3); }
+
+/* Player controls: one huge play button, then a 4-up grid of large touch targets */
+.player-controls .btn-play { width: 104px; height: 104px; font-size: 3rem; }
+.player-secondary { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; }
+.btn-ctl { min-height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .15rem; padding: .5rem .25rem; }
+.btn-ctl i { font-size: 1.35rem; line-height: 1; }
+.btn-ctl span { font-size: .75rem; line-height: 1.1; }
+.player-extras .dropdown-toggle { min-height: 44px; }
+@media (max-width: 575.98px) {
+  .player-controls .btn-play { width: 136px; height: 136px; font-size: 4rem; }
+  .btn-ctl { min-height: 72px; }
+  .player-card .card-body { padding: 1.25rem !important; }
+}
+/* Touch devices: iOS ignores programmatic volume, so hide the slider there */
+@media (hover: none) and (pointer: coarse) { .player-extras .volume { display: none !important; } }
+
+/* Compact player header and phone-sized layout: everything fits without scrolling */
+.player-art-sm { width: 48px; height: 48px; border-radius: 14px; font-size: 1.4rem; box-shadow: none; }
+.player-clock { font-size: 2.25rem; line-height: 1.1; }
+@media (max-width: 575.98px) {
+  main.container { padding-top: .75rem !important; padding-bottom: .75rem !important; }
+  .player-art-sm { width: 40px; height: 40px; border-radius: 12px; font-size: 1.2rem; }
+  .player-head h1 { font-size: 1.2rem; }
+  .player-clock { font-size: 2rem; }
+  .player-controls { margin-top: .75rem !important; }
+  .player-controls .btn-play { width: 112px; height: 112px; font-size: 3.4rem; }
+  .player-secondary { margin-top: .75rem !important; gap: .4rem; }
+  .btn-ctl { min-height: 60px; }
+  .btn-ctl span { font-size: .7rem; }
+  .player-extras { margin-top: .75rem !important; }
+  #statusLine:empty { display: none; }
+}
+
+/* Artwork */
+.card-art { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; background: #fff; }
+.artwork-preview { width: 48px; height: 48px; border-radius: 10px; object-fit: cover; background: #fff; }
+.player-art img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+.song-line { font-size: .95rem; margin-top: .25rem; }

@@ -1,7 +1,7 @@
 <icecast>
     <limits>
         <clients>100</clients>
-<sources>3</sources>
+        <sources>$icecast_max_sources</sources>
         <queue-size>524288</queue-size>
         <client-timeout>30</client-timeout>
         <header-timeout>15</header-timeout>
@@ -11,10 +11,10 @@
     </limits>
     <authentication>
         <admin-user>admin</admin-user>
-        <admin-password>ChangeMePlease</admin-password>
-        <source-password>ChangeMePlease</source-password>
+        <admin-password>$icecast_admin_password</admin-password>
+        <source-password>$icecast_source_password</source-password>
     </authentication>
-    <hostname>localhost</hostname>
+    <hostname>$icecast_hostname</hostname>
     <listen-socket>
         <port>8000</port>
     </listen-socket>
@@ -25,8 +25,15 @@
         <basedir>/usr/share/icecast2</basedir>
         <webroot>/usr/share/icecast2/web</webroot>
         <adminroot>/usr/share/icecast2/admin</adminroot>
-        <logdir>/app/data/logs/</logdir>
+        <logdir>/app/data/logs</logdir>
         <pidfile>/tmp/icecast.pid</pidfile>
         <alias source="/" destination="/status.xsl"/>
     </paths>
+    <logging>
+        <accesslog>icecast-access.log</accesslog>
+        <errorlog>icecast-error.log</errorlog>
+        <loglevel>3</loglevel>
+        <logsize>5000</logsize>
+        <logarchive>0</logarchive>
+    </logging>
 </icecast>

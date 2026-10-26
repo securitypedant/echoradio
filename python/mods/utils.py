@@ -1,164 +1,79 @@
-import os 
-import re
+"""Small helpers: timezone lists, config export/import, URL helpers."""
+from __future__ import annotations
+
 import io
-import json
+import os
 import zipfile
-import tempfile
-
 from zoneinfo import available_timezones
-from flask import current_app, send_file, flash, request, redirect, url_for
 
-from mods.supervisord import supervisord_control
-from mods.logger import logger
+from flask import current_app, request
 
-DATA_FOLDER = "data"
+_SKIP_TZ_PREFIXES = ("Etc/", "SystemV/", "US/", "posix/", "right/")
 
-def download_config():
-    base_dir = DATA_FOLDER
-    memory_file = io.BytesIO()
 
-    with zipfile.ZipFile(memory_file, "w", zipfile.ZIP_DEFLATED) as zf:
-        for root, dirs, files in os.walk(base_dir):
-            # skip the logs directory entirely
-            if "logs" in root:
-                continue
-            for file in files:
-                # skip MP3 and log-like files
-                if file.endswith((".mp3", ".log", ".gz")):
-                    continue
-                full_path = os.path.join(root, file)
-                rel_path = os.path.relpath(full_path, base_dir)  # keep relative structure
-                zf.write(full_path, rel_path)
-
-    memory_file.seek(0)
-    logger.info(f"Exporting server configuration.")
-    return send_file(
-        memory_file,
-        as_attachment=True,
-        download_name="server_config.zip",
-        mimetype="application/zip"
-    )
-
-def import_config():
-    file = request.files.get('config_file')
-    if not file or not file.filename.endswith('.zip'):
-        flash("Invalid file. Please upload a .zip file.", "danger")
-        return redirect(url_for('settings'))
-
-    # Save to temp file
-    tempdir = tempfile.mkdtemp()
-    zip_path = os.path.join(tempdir, file.filename)
-    file.save(zip_path)
-
-    # Extract with overwrite, skip mp3/log files
-    logger.info(f"Importing server configuration...")
-    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-        for member in zip_ref.namelist():
-            # Skip mp3 and log files
-            if member.endswith(".mp3") or member.endswith(".log") or ".log." in member:
-                continue
-
-            # Protect against zip-slip (malicious paths)
-            target_path = os.path.abspath(os.path.join(DATA_FOLDER, member))
-            if not target_path.startswith(os.path.abspath(DATA_FOLDER)):
-                continue
-
-            # Ensure target directory exists
-            os.makedirs(os.path.dirname(target_path), exist_ok=True)
-
-            # Extract & overwrite
-            with zip_ref.open(member) as source, open(target_path, "wb") as target:
-                target.write(source.read())
-
-    logger.info(f"Configuration imported successfully (existing files overwritten).")
-    flash("Configuration imported successfully (existing files overwritten).", "success")
-    return redirect(url_for('settings'))
-
-# Group timezones by region prefix (e.g., 'America', 'Europe')
-def get_grouped_timezones():
-    grouped = {}
+def grouped_timezones() -> dict[str, list[str]]:
+    grouped: dict[str, list[str]] = {}
     for tz in sorted(available_timezones()):
-        if '/' in tz:
-            region, city = tz.split('/', 1)
-        else:
-            region = 'Other'
-            city = tz
+        if tz.startswith(_SKIP_TZ_PREFIXES) or "/" not in tz:
+            if tz != "UTC":
+                continue
+        region = tz.split("/", 1)[0] if "/" in tz else "Other"
         grouped.setdefault(region, []).append(tz)
-    return grouped
+    return dict(sorted(grouped.items()))
 
-def ensure_data_dir(directory):
-    if not os.path.exists(directory):
-        os.makedirs(directory)
 
-def save_stream_metadata(stub, entry):
-    directory = os.path.join(current_app.config['STREAMS_ROOT'], stub)
-    ensure_data_dir(directory)
-    metadata_file = os.path.join(directory, 'metadata.json')
+def public_base_url() -> str:
+    """Configured public base URL, else the origin the current request arrived on."""
+    configured = (current_app.config.get("PUBLIC_BASE_URL") or "").strip().rstrip("/")
+    if configured:
+        return configured
+    return request.url_root.rstrip("/")
 
-    with open(metadata_file, 'w') as f:
-        json.dump(entry, f, indent=2)
 
-def get_stream_metadata(stub):
-    metadata_file = os.path.join(current_app.config['STREAMS_ROOT'], stub, 'metadata.json')
+def stream_urls(meta: dict) -> dict[str, str]:
+    """Public URLs for a stream, using its URL name (mount)."""
+    base = public_base_url()
+    name = meta.get("mount") or meta["stub"]
+    return {
+        "mp3": f"{base}/listen/{name}",
+        "hls": f"{base}/hls/{name}/live.m3u8",
+        "player": f"{base}/player/{name}",
+    }
 
-    if os.path.exists(metadata_file):
-        with open(metadata_file, 'r') as f:
-            return json.load(f)
-    else:
-        return {}
 
-def make_stub_name(name):
-    # Remove all non-alphanumeric characters
-    stub = re.sub(r'[^a-zA-Z0-9]', '', name)
-    # Optionally, lowercase it
-    return stub.lower()
+def export_config_zip() -> io.BytesIO:
+    """server_config.json + every stream's metadata.json."""
+    data_root = current_app.config["DATA_ROOT"]
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        cfg = os.path.join(data_root, "server_config.json")
+        if os.path.exists(cfg):
+            zf.write(cfg, "server_config.json")
+        streams_root = current_app.config["STREAMS_ROOT"]
+        if os.path.isdir(streams_root):
+            for stub in sorted(os.listdir(streams_root)):
+                meta = os.path.join(streams_root, stub, "metadata.json")
+                if os.path.exists(meta):
+                    zf.write(meta, f"streams/{stub}/metadata.json")
+    buf.seek(0)
+    return buf
 
-def replace_in_file(filename: str, pattern: str, replacement: str):
-    """
-    Reads the given file, replaces the first match of the pattern with the replacement,
-    and writes the result back to the file.
-    
-    Args:
-        filename (str): Path to the file to modify.
-        pattern (str): Regex pattern to search for.
-        replacement (str): Replacement string to use.
-    """
-    with open(filename, "r") as f:
-        content = f.read()
 
-    new_content = re.sub(pattern, replacement, content, count=1)
-
-    with open(filename, "w") as f:
-        f.write(new_content)
-
-def update_icecast_config(icecast_public_hostname='localhost', 
-                          icecast_public_port='8000',
-                          icecast_admin_password='ChangeMePlease!',
-                          icecast_source_password='ChangeMePlease!',
-                          icecast_max_sources=5
-                        ):
-    """
-    Updates the Icecast configuration file with the latest settings.
-
-    Args:
-        icecast_public_hostname (str): The hostname for Icecast, defaults to 'localhost'.
-        icecast_public_port (str): The port for Icecast, defaults to '8000'.
-        icecast_password (str): The password for Icecast, defaults to 'ChangeMePlease!'.
-        icecast_max_sources (int): The maximum number of sources for Icecast, defaults to '5'.
-    """
-
-    icecast_config_path = os.path.join(current_app.config['DATA_ROOT'], 'icecast.xml')
-    
-    # Update the hostname
-    replace_in_file(icecast_config_path, r'<hostname>.*?</hostname>', f'<hostname>{icecast_public_hostname}</hostname>')
-
-    # Update the port
-    # replace_in_file(icecast_config_path, r'<port>.*?</port>', f'<port>{icecast_public_port}</port>')
-    # Update the passwords
-    replace_in_file(icecast_config_path, r'<admin-password>.*?</admin-password>', f'<admin-password>{icecast_admin_password}</admin-password>')
-    replace_in_file(icecast_config_path, r'<source-password>.*?</source-password>', f'<source-password>{icecast_source_password}</source-password>')
-
-    # Other config
-    replace_in_file(icecast_config_path, r'<sources>.*?</sources>', f'<sources>{icecast_max_sources}</sources>')
-
-    supervisord_control(action='restart', service='icecast')
+def import_config_zip(fileobj) -> list[str]:
+    """Restore server_config.json and stream metadata from an export. Returns imported stubs."""
+    data_root = os.path.abspath(current_app.config["DATA_ROOT"])
+    imported: list[str] = []
+    with zipfile.ZipFile(fileobj) as zf:
+        for member in zf.namelist():
+            if not (member == "server_config.json" or
+                    (member.startswith("streams/") and member.endswith("/metadata.json"))):
+                continue
+            target = os.path.abspath(os.path.join(data_root, member))
+            if not target.startswith(data_root + os.sep):
+                continue
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            with zf.open(member) as src, open(target, "wb") as dst:
+                dst.write(src.read())
+            if member.startswith("streams/"):
+                imported.append(member.split("/")[1])
+    return imported

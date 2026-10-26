@@ -1,145 +1,144 @@
 {% extends "base.html" %}
+{% block title %}Settings · Echo Radio{% endblock %}
 {% block content %}
-<div class="container">
-  <div class="card shadow-sm">
-    <div class="card-body">
+<div class="row justify-content-center">
+  <div class="col-lg-9 col-xl-8">
     {% if first_use %}
-      <h5 class="card-title"><i class="bi bi-soundwave pe-2"></i><span class="kaushan-script-regular">Echo Radio</span></h5>
-      <p class="card-text">This app is designed to allow you to record your favorite radio stations and replay so that you can listen as if they were broadcast in your own timezone. Wake up to your favorite breakfast shows and fall asleep to late night DJ's mixes.</p>
-    {% else %}
-        <h5 class="card-title">Settings</h5>
-    {% endif %}
-    <form method="POST" action="{{ url_for('home') }}">
-      <input type="hidden" name="action" value="settings">
-    
-      <!-- Admin toggle and password on same row -->
-      <div class="row align-items-center mb-3">
-        <div class="col-md-2">
-          <div class="form-check form-switch">
-            <input class="form-check-input" type="checkbox" id="enable_admin" name="enable_admin"
-                   onchange="toggleAdminPassword()" {% if config.enable_admin %}checked{% endif %}>
-            <label class="form-check-label" for="enable_admin">Require Admin?</label>
-          </div>
-        </div>
-        <div class="col-md-4" id="admin_password_group" style="display:none;">
-          <label for="admin_password" class="form-label mb-1">Set Admin Password</label>
-          <div class="input-group">
-            <input type="password" class="form-control" id="admin_password" name="admin_password">
-            <button class="btn btn-outline-secondary" type="button" id="togglePassword" tabindex="-1">
-              <i class="bi bi-eye" id="eyeIcon"></i>
-            </button>
-          </div>
+    <div class="card shadow-sm mb-3 welcome-card">
+      <div class="card-body p-4 d-flex gap-3 align-items-center">
+        <i class="bi bi-soundwave display-5"></i>
+        <div>
+          <h1 class="h4 mb-1">Welcome to <span class="brand-font">Echo Radio</span></h1>
+          <p class="mb-0">Record your favourite radio stations and hear them as if they were broadcast in your own timezone. Set a couple of passwords to get started, then add your first stream.</p>
         </div>
       </div>
-    
-      <!-- Icecast Source and Admin Passwords on same row -->
-      <div class="row mb-3">
-        <div class="col-md-6">
-          <label for="icecast_source_password" class="form-label">Icecast Source Password</label>
-          <input type="text" class="form-control" id="icecast_source_password"
-                 name="icecast_source_password" value="{{ config.icecast_source_password }}">
-        </div>
-        <div class="col-md-6">
-          <label for="icecast_admin_password" class="form-label">Icecast Admin Password</label>
-          <input type="text" class="form-control" id="icecast_admin_password"
-                 name="icecast_admin_password" value="{{ config.icecast_admin_password }}">
-        </div>
-      </div>
-    
-      <!-- Icecast Hostname + Protocol + Port -->
-      <div class="row mb-3">
-        <div class="col-md-6">
-          <label for="icecast_public_hostname" class="form-label">Icecast Hostname</label>
-          <input type="text" class="form-control" id="icecast_public_hostname"
-                 name="icecast_public_hostname" value="{{ config.icecast_public_hostname }}">
-        </div>
-        <div class="col-md-3">
-          <label for="icecast_public_protocol" class="form-label">Icecast Protocol</label>
-          <select class="form-select" id="icecast_public_protocol" name="icecast_public_protocol">
-            <option value="http" {% if config.icecast_public_protocol == 'http' %}selected{% endif %}>http</option>
-            <option value="https" {% if config.icecast_public_protocol == 'https' %}selected{% endif %}>https</option>
-          </select>
-        </div>
-        <div class="col-md-3">
-          <label for="icecast_public_port" class="form-label">Icecast Port</label>
-          <input type="number" class="form-control" id="icecast_public_port"
-                 name="icecast_public_port" value="{{ config.icecast_public_port }}">
-        </div>
-      </div>
-    
-      <div class="mb-3">
-        <label for="icecast_max_sources" class="form-label">Max Streams</label>
-        <input type="number" class="form-control" id="icecast_max_sources"
-               name="icecast_max_sources" value="{{ config.icecast_max_sources }}">
-      </div>
-    
-      <button type="submit" class="btn btn-success">Save Configuration</button>
-      <a href="{{ url_for('home') }}" class="btn btn-outline-secondary">Back</a>
-    </form>
-    
-    <form method="POST" action="{{ url_for('import_config') }}" enctype="multipart/form-data" class="d-inline">
-      <a href="{{ url_for('download_config') }}" class="btn btn-outline-secondary mt-3">
-        <i class="bi bi-download"></i> Download Config
-      </a>
-      <label for="config_file" class="btn btn-outline-secondary mb-0 mt-3">
-        <i class="bi bi-upload"></i> Import Config
-      </label>
-      <input type="file" id="config_file" name="config_file" accept=".zip" style="display: none;" onchange="this.form.submit()">
-    </form>
-    
-    {% if not first_use %}
-    <h6 class="py-3">Logs</h6>
-    <ul class="list-group">
-      <li class="list-group-item">
-        <a href="{{ url_for('view_log', stub='_server', filename='echo_radio.log') }}" target="_blank">Echo Radio app log</a>
-      </li>      
-      <li class="list-group-item">
-        <a href="{{ url_for('view_log', stub='_server', filename='supervisord.log') }}" target="_blank">Supervisord output - (supervisord.log)</a>
-      </li>
-      <li class="list-group-item">
-        <a href="{{ url_for('view_log', stub='_server', filename='sup_flask.out.log') }}" target="_blank">Flask supervisor log - (sup_flask.out.log)</a>
-      </li>
-      <li class="list-group-item">
-        <a href="{{ url_for('view_log', stub='_server', filename='sup_flask.err.log') }}" target="_blank">Flask supervisor error log - (sup_flask.err.log)</a>
-      </li>
-      <li class="list-group-item">
-        <a href="{{ url_for('view_log', stub='_server', filename='sup_icecast.out.log') }}" target="_blank">Icecast supervisor log - (sup_icecast.out.log)</a>
-      </li>
-      <li class="list-group-item">
-        <a href="{{ url_for('view_log', stub='_server', filename='sup_icecast.err.log') }}" target="_blank">Icecast supervisor error log - (sup_icecast.err.log)</a>
-      </li>
-      <li class="list-group-item">
-        <a href="{{ url_for('view_log', stub='_server', filename='access.log') }}" target="_blank">Icecast access log - (access.log)</a>
-      </li>
-      <li class="list-group-item">
-        <a href="{{ url_for('view_log', stub='_server', filename='error.log') }}" target="_blank">Icecast error log - (error.log)</a>
-      </li>
-    </ul>
-    {% endif %}
     </div>
+    {% else %}
+    <a href="{{ url_for('home') }}" class="btn btn-link px-0 mb-2"><i class="bi bi-arrow-left"></i> Back to streams</a>
+    {% endif %}
+
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <h2 class="h4 mb-4">{{ 'Initial setup' if first_use else 'Settings' }}</h2>
+        <form method="post" action="{{ url_for('settings') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+          <h3 class="h6 text-uppercase text-body-secondary">Access</h3>
+          <div class="row g-3 mb-4">
+            <div class="col-12">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="enable_admin" name="enable_admin" {% if config.enable_admin %}checked{% endif %}>
+                <label class="form-check-label text-nowrap" for="enable_admin">Require an admin password to make changes</label>
+              </div>
+              <div class="form-text">Anyone with the address can still listen.</div>
+            </div>
+            <div class="col-md-7" id="admin_password_group">
+              <label for="admin_password" class="form-label">Admin password {% if config.admin_password %}<span class="text-body-secondary">(leave blank to keep the current one)</span>{% endif %}</label>
+              <div class="input-group">
+                <input type="password" class="form-control" id="admin_password" name="admin_password" autocomplete="new-password">
+                <button class="btn btn-outline-secondary toggle-password" type="button" data-target="admin_password" tabindex="-1"><i class="bi bi-eye"></i></button>
+              </div>
+            </div>
+          </div>
+
+          <h3 class="h6 text-uppercase text-body-secondary">Icecast</h3>
+          <div class="row g-3 mb-4">
+            <div class="col-md-6">
+              <label for="icecast_source_password" class="form-label">Source password</label>
+              <div class="input-group">
+                <input type="password" class="form-control" id="icecast_source_password" name="icecast_source_password" value="{{ config.icecast_source_password }}" required>
+                <button class="btn btn-outline-secondary toggle-password" type="button" data-target="icecast_source_password" tabindex="-1"><i class="bi bi-eye"></i></button>
+              </div>
+              <div class="form-text">Used internally by the recorders to publish to Icecast.</div>
+            </div>
+            <div class="col-md-6">
+              <label for="icecast_admin_password" class="form-label">Admin password</label>
+              <div class="input-group">
+                <input type="password" class="form-control" id="icecast_admin_password" name="icecast_admin_password" value="{{ config.icecast_admin_password }}" required>
+                <button class="btn btn-outline-secondary toggle-password" type="button" data-target="icecast_admin_password" tabindex="-1"><i class="bi bi-eye"></i></button>
+              </div>
+              <div class="form-text">For Icecast's own admin pages on port 8000.</div>
+            </div>
+            <div class="col-md-4">
+              <label for="icecast_max_sources" class="form-label">Maximum streams</label>
+              <input type="number" min="1" max="50" class="form-control" id="icecast_max_sources" name="icecast_max_sources" value="{{ config.icecast_max_sources }}">
+            </div>
+          </div>
+
+          <h3 class="h6 text-uppercase text-body-secondary">Recording and playback</h3>
+          <div class="row g-3 mb-4">
+            <div class="col-md-4">
+              <label for="retention_hours" class="form-label">Keep recordings for</label>
+              <div class="input-group">
+                <input type="number" min="25" max="168" class="form-control" id="retention_hours" name="retention_hours" value="{{ config.retention_hours }}">
+                <span class="input-group-text">hours</span>
+              </div>
+              <div class="form-text">At least a day plus the rewind window.</div>
+            </div>
+            <div class="col-md-4">
+              <label for="dvr_hours" class="form-label">Rewind window in player</label>
+              <div class="input-group">
+                <input type="number" min="1" max="24" class="form-control" id="dvr_hours" name="dvr_hours" value="{{ config.dvr_hours }}">
+                <span class="input-group-text">hours</span>
+              </div>
+              <div class="form-text">How far back the web player can scrub.</div>
+            </div>
+            <div class="col-md-12">
+              <label for="public_base_url" class="form-label">Public address <span class="text-body-secondary">(optional)</span></label>
+              <input type="url" class="form-control" id="public_base_url" name="public_base_url" value="{{ config.public_base_url }}" placeholder="https://radio.example.com">
+              <div class="form-text">Used for the copyable stream links. Leave blank to use whatever address you are browsing from (works with Cloudflare Tunnel).</div>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>{{ 'Finish setup' if first_use else 'Save settings' }}</button>
+            {% if not first_use %}<a href="{{ url_for('home') }}" class="btn btn-outline-secondary">Cancel</a>{% endif %}
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {% if not first_use %}
+    <div class="card shadow-sm mt-3">
+      <div class="card-body p-4">
+        <h2 class="h5">Backup and restore</h2>
+        <p class="text-body-secondary small">Exports the server settings and stream definitions (not the recordings).</p>
+        <div class="d-flex gap-2 flex-wrap">
+          <a href="{{ url_for('settings_export') }}" class="btn btn-outline-secondary"><i class="bi bi-download me-1"></i>Export configuration</a>
+          <form method="post" action="{{ url_for('settings_import') }}" enctype="multipart/form-data" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label for="config_file" class="btn btn-outline-secondary mb-0"><i class="bi bi-upload me-1"></i>Import configuration</label>
+            <input type="file" id="config_file" name="config_file" accept=".zip" class="d-none" onchange="this.form.submit()">
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mt-3">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <h2 class="h5 mb-0">Logs</h2>
+          <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('logs_page') }}"><i class="bi bi-journal-text me-1"></i>Open log viewer</a>
+        </div>
+        <p class="text-body-secondary small mt-2 mb-3">Search, filter and follow the server and per-stream logs.</p>
+        <div class="list-group list-group-flush">
+          {% for name in logs %}
+          <a class="list-group-item list-group-item-action d-flex justify-content-between" href="{{ url_for('logs_page', file=name) }}"><span>{{ name }}</span><i class="bi bi-chevron-right text-body-secondary"></i></a>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
   </div>
 </div>
-
+{% endblock %}
+{% block scripts %}
 <script>
-  function toggleAdminPassword() {
-    const checkbox = document.getElementById('enable_admin');
-    const passwordGroup = document.getElementById('admin_password_group');
-    passwordGroup.style.display = checkbox.checked ? 'block' : 'none';
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  toggleAdminPassword();
-
-  const toggleBtn = document.getElementById('togglePassword');
-  const passwordInput = document.getElementById('admin_password');
-  const eyeIcon = document.getElementById('eyeIcon');
-
-  toggleBtn.addEventListener('click', () => {
-    const type = passwordInput.type === 'password' ? 'text' : 'password';
-    passwordInput.type = type;
-    eyeIcon.classList.toggle('bi-eye');
-    eyeIcon.classList.toggle('bi-eye-slash');
-  });
-});
+  (function () {
+    const cb = document.getElementById('enable_admin');
+    const group = document.getElementById('admin_password_group');
+    const sync = () => { group.style.visibility = cb.checked ? 'visible' : 'hidden'; };
+    cb.addEventListener('change', sync); sync();
+  })();
 </script>
 {% endblock %}

@@ -1,79 +1,64 @@
-# Use the Savonet file for the base
-# FROM savonet/liquidsoap:v2.3.0
-FROM ubuntu:noble
+# syntax=docker/dockerfile:1
+#
+# EchoRadio runtime image.
+# Liquidsoap comes from Savonet's prebuilt .deb (amd64 + arm64), so no OCaml toolchain is needed.
+ARG LIQUIDSOAP_VERSION=2.4.6
+ARG LIQUIDSOAP_DEB_SUFFIX=debian-trixie-ocaml4.14.2-3
 
-# Accept a build-time argument
+FROM debian:trixie-slim
+ARG LIQUIDSOAP_VERSION
+ARG LIQUIDSOAP_DEB_SUFFIX
+ARG TARGETARCH
 ARG FLASK_ENV=production
-ENV FLASK_ENV=${FLASK_ENV}
 
-# Install basic system dependencies
-RUN apt-get update && apt-get install -y \
-    icecast2 supervisor python3 python3-pip nano
+ENV DEBIAN_FRONTEND=noninteractive \
+    FLASK_ENV=${FLASK_ENV} \
+    TZ=UTC \
+    DATA_ROOT=/app/data \
+    PATH=/opt/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
-# Install Liquidsoap via opam
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    curl git m4 bubblewrap unzip build-essential \
-    pkg-config opam sudo \
-    libmp3lame-dev libcurl4-gnutls-dev libfaad-dev libmad0-dev libtag1-dev \
-    libavcodec-dev libavdevice-dev libavfilter-dev libavformat-dev libavutil-dev libswresample-dev libswscale-dev
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+# System packages + liquidsoap .deb (FFmpeg is statically linked into the package).
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        ca-certificates curl tzdata icecast2 nginx python3 python3-venv; \
+    curl -fsSL -o /tmp/liquidsoap.deb \
+        "https://github.com/savonet/liquidsoap/releases/download/v${LIQUIDSOAP_VERSION}/liquidsoap_${LIQUIDSOAP_VERSION}-${LIQUIDSOAP_DEB_SUFFIX}_${TARGETARCH}.deb"; \
+    apt-get install -y --no-install-recommends /tmp/liquidsoap.deb; \
+    rm -f /tmp/liquidsoap.deb; \
+    apt-get clean; rm -rf /var/lib/apt/lists/*; \
+    useradd --uid 1000 --create-home --shell /bin/bash streamer; \
+    mkdir -p /app/data
 
-# Install and configure logrotation
-RUN apt-get update && apt-get install -y logrotate
-COPY logrotate_configs/iceandsuper /etc/logrotate.d/iceandsuper
-COPY logrotate_configs/streams /etc/logrotate.d/streams
+# Python virtualenv
+COPY python/requirements.txt python/requirements-dev.txt /tmp/req/
+RUN set -eux; \
+    python3 -m venv /opt/venv; \
+    /opt/venv/bin/pip install --no-cache-dir -r /tmp/req/requirements.txt; \
+    if [ "$FLASK_ENV" = "development" ]; then \
+        /opt/venv/bin/pip install --no-cache-dir -r /tmp/req/requirements-dev.txt; \
+    fi; \
+    rm -rf /tmp/req
 
-# Configure supervisord, cron
-RUN apt-get update && apt-get install -y cron
-COPY supervisord.conf /etc/supervisord.conf
+# Application
+COPY --chown=streamer:streamer python/ /app/
+RUN chmod +x /app/entrypoint.sh /app/start_web.sh && rm -rf /app/data && mkdir -p /app/data && chown streamer:streamer /app/data
 
-# Create a non-root user
-RUN useradd -m -s /bin/bash streamer && \
-    mkdir -p /app/data/logs/
-
-# Create a dedicated group for supervisor access
-RUN groupadd -r supervisor && \
-    usermod -aG supervisor streamer
-
-# Switch to non-root user
 USER streamer
-WORKDIR /home/streamer
-
-# Initialize OPAM and install liquidsoap
-RUN opam init --bare --disable-sandboxing && \
-    opam switch create 4.14.2 && \    
-    eval $(opam env) && \
-    opam update && \
-    opam install -y opam-depext && \
-    opam depext -y ffmpeg taglib mad lame faad cry liquidsoap && \
-    opam install -y ffmpeg taglib mad lame faad cry liquidsoap
-
-# Setup Liquidsoap PATH for future shells
-ENV OPAMROOT=/home/streamer/.opam
-ENV PATH=/home/streamer/.opam/4.14.2/bin:$PATH
-
-# Configure application environment
 WORKDIR /app
+ENV HOME=/home/streamer
 
-# Setup python environment
-COPY python/ /app
-RUN pip install --break-system-packages -r /app/requirements.txt
-RUN rm -rf /app/data/streams /app/data/supervisord_configs
+# Pre-compile the liquidsoap standard library cache so stream start-up is fast.
+RUN liquidsoap --cache-stdlib
 
-# Optional: install extra tools in dev
-RUN if [ "$FLASK_ENV" = "development" ]; then pip install --break-system-packages debugpy; fi
-
+# The entrypoint starts as root only to fix ownership of the mounted data directory,
+# then drops to "streamer" (see entrypoint.sh).
 USER root
-# Make sure streamer owns the /app directory
-RUN chmod +x /app/start_flask.sh
-RUN chown -R streamer:streamer /app
 
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
+VOLUME ["/app/data"]
+EXPOSE 8080 8000
 
-# Expose ports (8000 for Icecast, 8080 for Flask)
-EXPOSE 8000 8080
+HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=5 \
+    CMD curl -fsS http://127.0.0.1:8080/healthz || exit 1
 
-# Health check to ensure processes are running
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-    CMD pgrep -u streamer -f "icecast2" || exit 1
+ENTRYPOINT ["bash", "/app/entrypoint.sh"]

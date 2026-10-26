@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Logs · Echo Radio{% endblock %}
+{% block content %}
+<a href="{{ url_for('settings') }}" class="btn btn-link px-0 mb-2"><i class="bi bi-arrow-left"></i> Back to settings</a>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
+  <div>
+    <h1 class="h3 mb-1">Logs</h1>
+    <div class="text-body-secondary">Server and per-stream logs. Search filters the loaded lines instantly.</div>
+  </div>
+</div>
+
+<div class="card shadow-sm log-viewer" id="logViewer" data-log-url="{{ url_for('server_log', name='__NAME__') }}">
+  <div class="card-body pb-2">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label small text-body-secondary mb-1" for="logFile">Log file</label>
+        <select class="form-select" id="logFile">
+          {% for group in ['Server', 'Streams'] %}
+            {% set items = catalog|selectattr('group', 'equalto', group)|list %}
+            {% if items %}
+            <optgroup label="{{ group }}">
+              {% for item in items %}<option value="{{ item.id }}" {% if item.id == selected %}selected{% endif %}>{{ item.label }}</option>{% endfor %}
+            </optgroup>
+            {% endif %}
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label small text-body-secondary mb-1" for="logSearch">Search</label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="search" class="form-control" id="logSearch" placeholder="Filter lines… (e.g. error, icecast)" autocomplete="off">
+          <button class="btn btn-outline-secondary" type="button" id="logRegex" data-bs-toggle="button" title="Treat the search as a regular expression">.*</button>
+        </div>
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label small text-body-secondary mb-1" for="logLines">Load last</label>
+        <select class="form-select" id="logLines">
+          <option value="200">200 lines</option>
+          <option value="1000" selected>1,000 lines</option>
+          <option value="5000">5,000 lines</option>
+          <option value="20000">20,000 lines</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-2 d-flex gap-2 justify-content-end">
+        <button class="btn btn-outline-secondary" type="button" id="logRefresh" title="Reload now"><i class="bi bi-arrow-clockwise"></i></button>
+        <a class="btn btn-outline-secondary" id="logDownload" href="#" download title="Download the loaded lines"><i class="bi bi-download"></i></a>
+      </div>
+    </div>
+    <div class="d-flex flex-wrap gap-3 align-items-center mt-3 small">
+      <div class="form-check form-switch mb-0">
+        <input class="form-check-input" type="checkbox" id="logFollow" checked>
+        <label class="form-check-label" for="logFollow">Follow (refresh every 5 s)</label>
+      </div>
+      <div class="form-check form-switch mb-0">
+        <input class="form-check-input" type="checkbox" id="logWrap">
+        <label class="form-check-label" for="logWrap">Wrap long lines</label>
+      </div>
+      <div class="form-check form-switch mb-0">
+        <input class="form-check-input" type="checkbox" id="logErrors">
+        <label class="form-check-label" for="logErrors">Errors and warnings only</label>
+      </div>
+      <span class="ms-auto text-body-secondary" id="logStats">Loading…</span>
+    </div>
+  </div>
+  <pre class="log-view log-view-tall mb-0" id="logOutput"></pre>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ asset_url('js/logs.js') }}" defer></script>
+{% endblock %}

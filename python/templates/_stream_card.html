@@ -1,0 +1,75 @@
+{# One stream card. Re-rendered by htmx every 10 s. Context: s (state dict), urls, is_admin #}
+<div class="col-12 col-md-6 col-xl-4" id="card-{{ s.stub }}"
+     hx-get="{{ url_for('stream_card', stub=s.stub) }}" hx-trigger="every 10s" hx-swap="outerHTML">
+  <div class="card h-100 shadow-sm stream-card status-{{ s.status }}">
+    <div class="card-body d-flex flex-column">
+      <div class="d-flex justify-content-between align-items-start gap-2">
+        {% if s.artwork_url %}<img src="{{ s.artwork_url }}" alt="" class="card-art flex-shrink-0" loading="lazy" onerror="this.remove()">{% endif %}
+        <div class="min-w-0 flex-grow-1">
+          <h2 class="h5 card-title mb-0 text-truncate" title="{{ s.name }}"><a class="link-body-emphasis text-decoration-none" hx-boost="true" hx-target="body" hx-swap="innerHTML show:window:top" href="{{ url_for('player', stub=s.stub, autoplay=1) }}">{{ s.name }}</a></h2>
+          {% if s.description %}<div class="text-body-secondary small text-truncate" title="{{ s.description }}">{{ s.description }}</div>{% endif %}
+        </div>
+        <span class="badge rounded-pill status-badge flex-shrink-0">
+          {% if s.status == 'recording' %}<i class="bi bi-record-circle-fill me-1 blink"></i>{% elif s.status == 'source_down' %}<i class="bi bi-exclamation-triangle-fill me-1"></i>{% elif s.status == 'starting' %}<i class="bi bi-hourglass-split me-1"></i>{% else %}<i class="bi bi-pause-circle-fill me-1"></i>{% endif %}{{ s.status_text }}
+        </span>
+      </div>
+
+      <a class="btn btn-primary w-100 listen-mobile d-md-none mt-3" hx-boost="true" hx-target="body" hx-swap="innerHTML show:window:top" href="{{ url_for('player', stub=s.stub, autoplay=1) }}"><i class="bi bi-play-fill me-1"></i>Listen now</a>
+
+      <div class="tz-row mt-3 small">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <span class="tz-chip" title="Station timezone"><i class="bi bi-broadcast-pin"></i> {{ s.source_timezone.split('/')[-1].replace('_', ' ') }} <span class="text-body-secondary">{{ s.source_offset }}</span></span>
+          <i class="bi bi-arrow-right text-body-secondary"></i>
+          <span class="tz-chip" title="Your timezone"><i class="bi bi-house-door"></i> {{ s.target_timezone.split('/')[-1].replace('_', ' ') }} <span class="text-body-secondary">{{ s.target_offset }}</span></span>
+          <span class="ms-auto fw-semibold text-nowrap" title="How far behind the live broadcast you hear it">{{ s.delay_text }} behind</span>
+        </div>
+      </div>
+
+      <div class="now-playing mt-3">
+        <div class="small text-body-secondary">Now playing</div>
+        <div class="d-flex align-items-baseline gap-2 flex-wrap">
+          <span class="fs-5 fw-semibold">{{ s.aired_at }}</span>
+          <span class="small text-body-secondary">station time · {{ s.listener_now }} your time</span>
+          {% if s.playing_kind == 'fill' %}<span class="badge text-bg-warning-subtle border small" title="Nothing was recorded for this moment; playing {{ s.backup_label|lower }} instead">{{ s.backup_label }}</span>{% endif %}
+        </div>
+        {% if s.now_playing_song %}<div class="small text-truncate" title="{{ s.now_playing_song }}"><i class="bi bi-music-note me-1 text-body-secondary"></i>{{ s.now_playing_song }}</div>{% endif %}
+      </div>
+
+      <div class="buffer-strip mt-3" title="Recorded audio over the last 24 hours ({{ s.hours_recorded }} h on disk)">
+        {% for c in s.coverage %}<span class="cell" style="--fill: {{ c }}"></span>{% endfor %}
+      </div>
+      <div class="d-flex justify-content-between small text-body-secondary mt-1">
+        <span>24 h ago</span><span>{{ s.hours_recorded }} h recorded</span><span>now</span>
+      </div>
+
+      <div class="d-flex align-items-center gap-2 mt-auto pt-3 flex-wrap">
+        <a class="btn btn-primary btn-sm d-none d-md-inline-flex align-items-center" hx-boost="true" hx-target="body" hx-swap="innerHTML show:window:top" href="{{ url_for('player', stub=s.stub, autoplay=1) }}"><i class="bi bi-play-fill me-1"></i>Listen</a>
+        <button type="button" class="btn btn-outline-secondary btn-sm copy-btn" data-copy="{{ urls.mp3 }}" title="Copy MP3 stream URL (smart speakers, car apps, VLC)"><i class="bi bi-music-note-beamed"></i> MP3 URL</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm copy-btn" data-copy="{{ urls.hls }}" title="Copy HLS URL"><i class="bi bi-collection-play"></i> HLS URL</button>
+        {% if s.listeners %}<span class="badge text-bg-light border ms-auto" title="{{ s.listeners_hls }} in the web player · {{ s.listeners_mp3 }} on the MP3 stream"><i class="bi bi-headphones me-1"></i>{{ s.listeners }}</span>{% endif %}
+      </div>
+
+      {% if is_admin %}
+      <div class="d-flex align-items-center justify-content-between border-top mt-3 pt-3">
+        <div class="form-check form-switch mb-0" title="{{ 'Stop recording and streaming' if s.process_state == 'RUNNING' else 'Start recording and streaming' }}">
+          <input class="form-check-input" type="checkbox" role="switch" id="toggle-{{ s.stub }}"
+                 {% if s.process_state in ('RUNNING', 'STARTING') %}checked{% endif %}
+                 hx-post="{{ url_for('stream_stop', stub=s.stub) if s.process_state in ('RUNNING', 'STARTING') else url_for('stream_start', stub=s.stub) }}"
+                 hx-target="#card-{{ s.stub }}" hx-swap="outerHTML" hx-trigger="change">
+          <label class="form-check-label small" for="toggle-{{ s.stub }}">{{ 'On' if s.process_state in ('RUNNING', 'STARTING') else 'Off' }}</label>
+        </div>
+        <div class="dropdown">
+          <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">Manage</button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" href="{{ url_for('stream_detail', stub=s.stub) }}"><i class="bi bi-activity me-2"></i>Details</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('stream_edit', stub=s.stub) }}"><i class="bi bi-pencil me-2"></i>Edit</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><button class="dropdown-item confirm-action" type="button" data-action="{{ url_for('stream_reset', stub=s.stub) }}" data-title="Clear recordings" data-body="Delete everything recorded for “{{ s.name }}” and start the buffer again? Listeners will hear {{ s.backup_label|lower }} until new audio is recorded." data-button="Clear recordings"><i class="bi bi-eraser me-2"></i>Clear recordings</button></li>
+            <li><button class="dropdown-item text-danger confirm-action" type="button" data-action="{{ url_for('stream_delete', stub=s.stub) }}" data-title="Delete stream" data-body="Delete “{{ s.name }}” and all of its recordings? This cannot be undone." data-button="Delete"><i class="bi bi-trash me-2"></i>Delete</button></li>
+          </ul>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
