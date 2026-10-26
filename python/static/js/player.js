@@ -296,10 +296,7 @@
   // ---- Media Session (lock screen / headset / keyboard media keys) -------------------
   if ('mediaSession' in navigator) {
     try {
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: cfg.name, artist: 'Echo Radio', album: cfg.description || '',
-        artwork: [{ src: cfg.artwork, sizes: '512x512', type: 'image/png' }]
-      });
+      updateSong(cfg.song);
       const set = (action, handler) => { try { navigator.mediaSession.setActionHandler(action, handler); } catch (e) { /* unsupported */ } };
       set('play', () => { if (!started) start(); else play(); });
       set('pause', pause);
@@ -311,10 +308,22 @@
   }
 
   // ---- stream state from the server --------------------------------------------------
+  function updateSong(song) {
+    const line = $('songLine'), text = $('songText');
+    if (line && text) { text.textContent = song || ''; line.classList.toggle('d-none', !song); }
+    if ('mediaSession' in navigator) {
+      try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: song || cfg.name, artist: song ? cfg.name : 'Echo Radio', album: cfg.description || 'Echo Radio',
+          artwork: [{ src: cfg.artwork, sizes: '512x512', type: 'image/png' }]
+        });
+      } catch (e) { /* ignore */ }
+    }
+  }
   async function poll() {
     try {
       const r = await fetch(cfg.apiUrl, { cache: 'no-store' });
-      if (r.ok) apiState = await r.json();
+      if (r.ok) { apiState = await r.json(); updateSong(apiState.now_playing_song); }
     } catch (e) { /* ignore */ }
   }
   poll();

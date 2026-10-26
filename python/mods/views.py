@@ -151,6 +151,7 @@ def _parse_stream_form(form, exclude_stub: str | None = None) -> tuple[dict, lis
     errors: list[str] = []
     name = (form.get("stream_name") or "").strip()[:80]
     mount = (form.get("stream_mount") or "").strip().lower()
+    artwork = (form.get("artwork_url") or "").strip()[:500]
     url = (form.get("stream_url") or "").strip()
     description = (form.get("stream_description") or "").strip()[:200]
     source_tz = form.get("source_tz") or ""
@@ -175,8 +176,10 @@ def _parse_stream_form(form, exclude_stub: str | None = None) -> tuple[dict, lis
             errors.append("The URL name may only contain lowercase letters, digits, dashes and underscores.")
         elif streams.mount_taken(mount, exclude_stub):
             errors.append(f"The URL name “{mount}” is already used by another stream.")
+    if artwork and not artwork.lower().startswith(("http://", "https://")):
+        errors.append("Artwork must be an http(s) image URL.")
     fields = {"name": name, "url": url, "description": description, "source_timezone": source_tz,
-              "target_timezone": target_tz, "backup_track": backup, "bitrate": bitrate}
+              "target_timezone": target_tz, "backup_track": backup, "bitrate": bitrate, "artwork_url": artwork}
     if mount:
         fields["mount"] = mount
     return (fields, errors)

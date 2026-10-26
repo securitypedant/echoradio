@@ -18,7 +18,7 @@ def _public(s: dict) -> dict:
             "source_timezone", "target_timezone", "delay_seconds", "delay_text", "aired_at",
             "aired_at_iso", "listener_now", "source_now", "source_offset", "target_offset",
             "coverage", "hours_recorded", "listeners", "listeners_mp3", "listeners_hls", "backup_track",
-            "backup_label", "bitrate", "mount")
+            "backup_label", "bitrate", "mount", "now_playing_song", "artwork_url")
     out = {k: s.get(k) for k in keys}
     out["urls"] = stream_urls(s)
     return out
@@ -93,3 +93,13 @@ def healthz():
 def api_directory():
     from mods import directory
     return jsonify(directory.search(request.args.get("q", "")))
+
+
+def api_title(stub: str):
+    """Plain-text now-playing title used by the liquidsoap relay for ICY metadata."""
+    from flask import Response
+    meta = streams.resolve(stub)
+    if meta is None:
+        abort(404)
+    return Response(state.now_playing_title(meta) + "\n", mimetype="text/plain",
+                    headers={"Cache-Control": "no-store"})

@@ -3,30 +3,36 @@
 {% block content %}
 <div class="row justify-content-center">
   <div class="col-lg-8 col-xl-7">
-    <a href="{{ url_for('home') }}" class="btn btn-link px-0 mb-2"><i class="bi bi-arrow-left"></i> All streams</a>
     <div class="card shadow-sm player-card position-relative">
       <button type="button" class="tap-to-play d-none" id="tapToPlay" aria-label="Tap to listen">
         <span class="tap-icon"><i class="bi bi-play-fill"></i></span>
         <span class="fs-5 fw-semibold">Tap to listen</span>
         <span class="small">Your browser needs one tap before it will play sound.</span>
       </button>
-      <div class="card-body p-4 p-md-5">
-        <div class="text-center">
-          <div class="player-art mx-auto mb-3"><i class="bi bi-soundwave"></i></div>
-          <h1 class="h3 mb-1">{{ s.name }}</h1>
-          {% if s.description %}<div class="text-body-secondary">{{ s.description }}</div>{% endif %}
-          <div class="small text-body-secondary mt-2">
-            {{ s.source_timezone.split('/')[-1].replace('_', ' ') }} <i class="bi bi-arrow-right"></i> {{ s.target_timezone.split('/')[-1].replace('_', ' ') }} · {{ s.delay_text }} behind
+      <div class="card-body p-3 p-md-4">
+        <div class="player-head d-flex align-items-center gap-3">
+          <a href="{{ url_for('home') }}" class="btn btn-outline-secondary btn-sm flex-shrink-0" title="All streams" aria-label="All streams"><i class="bi bi-arrow-left"></i><span class="d-none d-md-inline ms-1">All streams</span></a>
+          <div class="player-art player-art-sm flex-shrink-0" id="playerArt">{% if s.artwork_url %}<img src="{{ s.artwork_url }}" alt="" onerror="this.remove()">{% else %}<i class="bi bi-soundwave"></i>{% endif %}</div>
+          <div class="min-w-0 flex-grow-1">
+            <h1 class="h4 mb-0 text-truncate">{{ s.name }}</h1>
+            <div class="small text-body-secondary text-truncate">
+              {{ s.source_timezone.split('/')[-1].replace('_', ' ') }} <i class="bi bi-arrow-right"></i> {{ s.target_timezone.split('/')[-1].replace('_', ' ') }} · {{ s.delay_text }} behind
+              {% if s.description %}<span class="d-none d-md-inline"> · {{ s.description }}</span>{% endif %}
+            </div>
           </div>
         </div>
 
-        <div class="now-line text-center mt-4" id="nowLine">
-          <div class="fs-1 fw-semibold tabular" id="airedClock">{{ s.aired_at }}</div>
-          <div class="text-body-secondary" id="airedLabel">station time · <span id="listenerClock">{{ s.listener_now }}</span> your time</div>
-          <div class="mt-1"><span class="badge rounded-pill text-bg-secondary" id="liveBadge">Connecting…</span> <span class="badge rounded-pill text-bg-warning-subtle border d-none" id="fillBadge">{{ s.backup_label }}</span></div>
+        <div class="now-line text-center mt-3" id="nowLine">
+          <div class="d-flex justify-content-center align-items-baseline gap-2 flex-wrap">
+            <span class="player-clock fw-semibold tabular" id="airedClock">{{ s.aired_at }}</span>
+            <span class="badge rounded-pill text-bg-secondary" id="liveBadge">Connecting…</span>
+            <span class="badge rounded-pill text-bg-warning-subtle border d-none" id="fillBadge">{{ s.backup_label }}</span>
+          </div>
+          <div class="small text-body-secondary" id="airedLabel">station time · <span id="listenerClock">{{ s.listener_now }}</span> your time</div>
+          <div class="song-line text-truncate {% if not s.now_playing_song %}d-none{% endif %}" id="songLine"><i class="bi bi-music-note me-1 text-body-secondary"></i><span id="songText">{{ s.now_playing_song or '' }}</span></div>
         </div>
 
-        <div class="timeline mt-4">
+        <div class="timeline mt-3">
           <input type="range" class="form-range" id="timeline" min="0" max="1000" step="1" value="1000" aria-label="Playback position" disabled>
           <div class="d-flex justify-content-between small text-body-secondary tabular">
             <span id="tlStart">—</span>
@@ -61,9 +67,9 @@
           </div>
         </div>
 
-        <div class="text-center small text-body-secondary mt-4" id="statusLine"></div>
+        <div class="text-center small text-body-secondary mt-3" id="statusLine"></div>
 
-        <details class="mt-4 small">
+        <details class="mt-3 small">
           <summary class="text-body-secondary">Listen in another app</summary>
           <div class="mt-2 d-grid gap-2">
             <div class="input-group input-group-sm"><span class="input-group-text">MP3</span><input class="form-control" readonly value="{{ urls.mp3 }}"><button class="btn btn-outline-secondary copy-btn" data-copy="{{ urls.mp3 }}" type="button"><i class="bi bi-clipboard"></i></button></div>
@@ -88,7 +94,8 @@
   "targetTz": s.target_timezone,
   "leadSeconds": config.PLAYER_LEAD_SECONDS,
   "autoplay": request.args.get('autoplay') == '1',
-  "artwork": url_for('static', filename='android-chrome-512x512.png', _external=True)
+  "artwork": s.artwork_url or url_for('static', filename='android-chrome-512x512.png', _external=True),
+  "song": s.now_playing_song or ""
 }|tojson }}</script>
 {% endblock %}
 {% block scripts %}

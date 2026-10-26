@@ -75,6 +75,8 @@ def normalize_metadata(meta: dict) -> dict:
     meta.setdefault("description", "")
     if not MOUNT_RE.match(str(meta.get("mount") or "")):
         meta["mount"] = meta["stub"]
+    art = str(meta.get("artwork_url") or "").strip()
+    meta["artwork_url"] = art if art.lower().startswith(("http://", "https://")) and len(art) <= 500 else ""
     now = time.time()
     meta.setdefault("created_at", now)
     # Timeline grid anchor: 48 h before creation, on a 10 s boundary (see hls.py).
@@ -180,6 +182,10 @@ def render_stream_script(meta: dict, server_cfg: dict | None = None) -> str:
         "bitrate": meta.get("bitrate", Config.DEFAULT_BITRATE),
         "hls_dir": os.path.join(stream_dir(stub), "hls"),
         "relay_playlist_url": f"{Config.WEB_PRIVATE_URL}/hls/{stub}/relay.m3u8",
+        "title_url": f"{Config.WEB_PRIVATE_URL}/api/streams/{stub}/title",
+        "events_log": os.path.join(stream_dir(stub), "events.log"),
+        "stream_url": _liq_str(f"{(server_cfg.get('public_base_url') or '').rstrip('/')}/player/{meta.get('mount') or stub}"
+                               if server_cfg.get("public_base_url") else ""),
         "backup_source": backup_source_definition(meta.get("backup_track", "birdsong")),
         "icecast_host": Config.ICECAST_PRIVATE_HOST,
         "icecast_port": Config.ICECAST_PRIVATE_PORT,

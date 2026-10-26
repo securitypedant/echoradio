@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.0.4 — 2026-10-26
+
+- MP3 relay sends a meaningful ICY title ("11:21 London time", or the fallback state) instead of
+  garbled segment metadata; song titles announced in-band by the source are recorded with
+  timestamps and replayed time-shifted in the ICY title, the cards, the player and the lock screen.
+- Optional artwork URL per stream (auto-filled from the directory), shown on cards, the player and
+  the phone lock screen; the Icecast mount advertises the player page as the stream URL.
+- Player: compact header (small artwork, title, route and delay on one row) and tighter spacing so all
+  controls fit on a phone screen without scrolling.
+
 ## 2.0.3 — 2026-10-25
 
 - Streams have an editable **URL name** (Icecast mount), used for the `/listen/`, HLS and player

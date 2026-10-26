@@ -155,6 +155,7 @@ def radio_browser(query: str, limit: int = 30) -> tuple[list[dict], str | None]:
                     "countrycode": cc, "state": st.get("state") or "", "tags": st.get("tags") or "",
                     "codec": st.get("codec") or "", "bitrate": st.get("bitrate") or 0,
                     "homepage": st.get("homepage") or "", "votes": st.get("votes") or 0,
+                    "favicon": (st.get("favicon") or "").strip(),
                     "description": ", ".join(x for x in (st.get("state"), st.get("country")) if x),
                     "source": "radio-browser", "timezone": timezone_hint(cc),
                 })

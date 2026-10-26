@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 
 import delay as delay_mod
 import hls
-from mods import icecast, streams, supervisor
+from mods import icecast, songlog, streams, supervisor
 from mods.config import Config
 from mods.logger import logger
 
@@ -118,6 +118,7 @@ def stream_state(meta: dict, now: datetime | None = None, stats: dict | None = N
     playing = idx.entries_between(kind, instant - 12.0, instant + 0.01, live_shift(meta, now))
     playing_kind = playing[-1].kind if playing else None
     coverage = idx.coverage(now_ts - 24 * 3600, now_ts, 3600.0)
+    song = songlog.song_at(stub, instant) if playing_kind == "rec" else None
     stats = stats if stats is not None else icecast.fetch_stats()
     mount = stats.get(stub, {})
     return {
@@ -129,6 +130,7 @@ def stream_state(meta: dict, now: datetime | None = None, stats: dict | None = N
         "recording": recording,
         "newest_segment_age": (now_ts - newest) if newest is not None else None,
         "playing_kind": playing_kind,          # "rec", "fill" or None
+        "now_playing_song": song,
         "coverage": coverage,                  # 24 hourly fractions, oldest first
         "hours_recorded": round(sum(coverage), 1),
         "disk_mb": round(idx.disk_bytes() / (1024 * 1024)),
@@ -156,6 +158,7 @@ def prune_all(retention_hours: int) -> None:
     for meta in streams.all_streams():
         try:
             removed = index_for(meta).prune(cutoff, meta.get("backup_track", "birdsong"), live_shift(meta))
+            songlog.prune(meta["stub"], cutoff)
             if removed:
                 logger.info("Pruned %d segments from %s", removed, meta["stub"])
         except Exception:  # noqa: BLE001
@@ -178,3 +181,21 @@ def start_housekeeper(get_retention_hours, interval: int = 600) -> None:
             time.sleep(interval)
 
     threading.Thread(target=loop, name="housekeeper", daemon=True).start()
+
+
+def now_playing_title(meta: dict, now: datetime | None = None) -> str:
+    """Short ICY title for the MP3 relay, e.g. "11:21 London time" or "Bird song · buffer filling"."""
+    now = now or delay_mod.utcnow()
+    info = delay_info(meta, now)
+    idx = index_for(meta)
+    kind = meta.get("backup_track", "birdsong")
+    instant = info["source_instant"]
+    playing = idx.entries_between(kind, instant - 12.0, instant + 0.01, live_shift(meta, now))
+    city = meta["source_timezone"].split("/")[-1].replace("_", " ")
+    if playing and playing[-1].kind == "fill":
+        if kind == "live":
+            return f"Live now · recording for {info['aired_at']} {city} time"
+        return f"{streams.BACKUP_KINDS.get(kind, kind)} · buffer filling"
+    base = f"{info['aired_at']} {city} time"
+    song = songlog.song_at(meta["stub"], instant)
+    return f"{song[:90]} · {base}" if song else base

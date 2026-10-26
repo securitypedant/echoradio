@@ -46,6 +46,7 @@ def register_routes(app) -> None:
     # JSON API
     add("/api/streams", "api_streams", api.api_streams)
     add("/api/streams/<stub>", "api_stream", api.api_stream)
+    add("/api/streams/<stub>/title", "api_title", api.api_title)
     add("/api/delay", "api_delay", api.api_delay)
     add("/api/test-url", "api_test_url", api.api_test_url, methods=["POST"])
     add("/api/directory", "api_directory", api.api_directory)

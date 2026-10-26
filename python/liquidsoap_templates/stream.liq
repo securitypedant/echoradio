@@ -10,7 +10,19 @@ settings.log.file := false
 settings.log.stdout := true
 settings.log.level := 3
 
-live = input.http(id="live", user_agent="$user_agent", "$stream_input")
+live = input.http(id="live", user_agent="$user_agent", new_track_on_metadata=false, "$stream_input")
+
+# Record in-band song metadata (ICY StreamTitle etc.) with a timestamp so it can be replayed
+# time-shifted by the web app. One tab-separated line per change: epoch, artist, title.
+def log_metadata(m) =
+  clean = fun (v) -> string.replace(pattern="[\t\n\r]", fun (_) -> " ", v)
+  title = clean(m["title"])
+  artist = clean(m["artist"])
+  if title != "" or artist != "" then
+    file.write(append=true, data="#{int_of_float(time())}\t#{artist}\t#{title}\n", "$events_log")
+  end
+end
+live.on_metadata(synchronous=false, log_metadata)
 
 enc = %ffmpeg(format="mpegts", %audio(codec="aac", b="$bitrate", ar=44100, channels=2))
 
@@ -24,16 +36,30 @@ end
 output.file.hls(id="record", fallible=true,
   segment_duration=10., segments=6, segments_overhead=null,
   persist_at="state.json", playlist="main.m3u8", segment_name=segment_name,
-  "$hls_dir", [("index", enc)], live)
+  "$hls_dir", [("index", enc.{id3 = false})], live)
 
 # --- icecast relay -----------------------------------------------------------
 delayed = input.ffmpeg(id="delayed", self_sync=false, "$relay_playlist_url")
+# Segment metadata is meaningless to listeners; we publish our own title below.
+delayed = drop_metadata(delayed)
 
 $backup_source
 
-out = fallback(id="out", track_sensitive=false, [delayed, backup])
+relay_out = fallback(id="relay", track_sensitive=false, [drop_metadata(delayed), drop_metadata(backup)])
+
+# ICY "now playing" title for radios and apps: fetched from the web app every 30 s.
+last_title = ref("")
+def refresh_title() =
+  title = string.trim(http.get(timeout=5., "$title_url"))
+  if title != "" and title != last_title() then
+    last_title := title
+    relay_out.insert_metadata([("title", title)])
+  end
+end
+thread.run(delay=10., every=30., refresh_title)
 
 output.icecast(id="icecast", fallible=true, %mp3,
   host="$icecast_host", port=$icecast_port, password="$icecast_source_password",
   mount="/$stream_mount", name="$stream_name", description="$stream_description", genre="Radio",
-  out)
+  url="$stream_url",
+  relay_out)

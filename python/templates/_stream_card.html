@@ -4,7 +4,8 @@
   <div class="card h-100 shadow-sm stream-card status-{{ s.status }}">
     <div class="card-body d-flex flex-column">
       <div class="d-flex justify-content-between align-items-start gap-2">
-        <div class="min-w-0">
+        {% if s.artwork_url %}<img src="{{ s.artwork_url }}" alt="" class="card-art flex-shrink-0" loading="lazy" onerror="this.remove()">{% endif %}
+        <div class="min-w-0 flex-grow-1">
           <h2 class="h5 card-title mb-0 text-truncate" title="{{ s.name }}"><a class="link-body-emphasis text-decoration-none" hx-boost="true" hx-target="body" hx-swap="innerHTML show:window:top" href="{{ url_for('player', stub=s.stub, autoplay=1) }}">{{ s.name }}</a></h2>
           {% if s.description %}<div class="text-body-secondary small text-truncate" title="{{ s.description }}">{{ s.description }}</div>{% endif %}
         </div>
@@ -31,6 +32,7 @@
           <span class="small text-body-secondary">station time · {{ s.listener_now }} your time</span>
           {% if s.playing_kind == 'fill' %}<span class="badge text-bg-warning-subtle border small" title="Nothing was recorded for this moment; playing {{ s.backup_label|lower }} instead">{{ s.backup_label }}</span>{% endif %}
         </div>
+        {% if s.now_playing_song %}<div class="small text-truncate" title="{{ s.now_playing_song }}"><i class="bi bi-music-note me-1 text-body-secondary"></i>{{ s.now_playing_song }}</div>{% endif %}
       </div>
 
       <div class="buffer-strip mt-3" title="Recorded audio over the last 24 hours ({{ s.hours_recorded }} h on disk)">

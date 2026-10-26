@@ -141,6 +141,8 @@
     if (desc && !desc.value) desc.value = (st.description || '').slice(0, 200);
     const src = document.getElementById('source_tz');
     if (st.timezone && src && src.tomselect) { src.tomselect.setValue(st.timezone); }
+    const art = document.getElementById('artwork_url');
+    if (art && st.favicon) { art.value = st.favicon; art.dispatchEvent(new Event('input')); }
     bootstrap.Modal.getOrCreateInstance(modalEl).hide();
     showToast('Filled in “' + st.name + '”' + (st.timezone ? ' (station timezone ' + st.timezone + ')' : ' — pick the station timezone'), 'success');
     document.getElementById('stream_name').focus();
@@ -149,4 +151,13 @@
   input.addEventListener('input', () => { clearTimeout(debounce); debounce = setTimeout(() => search(input.value.trim()), 250); });
   document.querySelectorAll('.dir-quick').forEach((b) => b.addEventListener('click', () => { input.value = b.dataset.q; search(b.dataset.q); }));
   modalEl.addEventListener('shown.bs.modal', () => { input.focus(); if (!results.children.length) search(input.value.trim()); });
+})();
+
+/* Artwork preview */
+(function () {
+  const input = document.getElementById('artwork_url'), img = document.getElementById('artworkPreview');
+  if (!input || !img) return;
+  const sync = () => { const v = input.value.trim(); if (v) { img.src = v; img.classList.remove('d-none'); } else { img.classList.add('d-none'); } };
+  input.addEventListener('input', sync);
+  img.addEventListener('error', () => img.classList.add('d-none'));
 })();
