@@ -121,6 +121,11 @@ def stream_state(meta: dict, now: datetime | None = None, stats: dict | None = N
     song = songlog.song_at(stub, instant) if playing_kind == "rec" else None
     stats = stats if stats is not None else icecast.fetch_stats()
     mount = stats.get(stub, {})
+    backup_label = streams.BACKUP_KINDS.get(kind, kind)
+    if kind == "live" and playing_kind == "fill" and running:
+        oldest = idx.oldest_start()
+        if oldest is None or now_ts - oldest < LIVE_LAG_SECONDS + 15:
+            backup_label = "Live stream · starting (about a minute)"
     return {
         **meta,
         "status": status,
@@ -137,7 +142,7 @@ def stream_state(meta: dict, now: datetime | None = None, stats: dict | None = N
         "listeners_mp3": mount.get("listeners", 0),
         "listeners_hls": hls_listeners(stub),
         "listeners": mount.get("listeners", 0) + hls_listeners(stub),
-        "backup_label": streams.BACKUP_KINDS.get(kind, kind),
+        "backup_label": backup_label,
         **info,
     }
 

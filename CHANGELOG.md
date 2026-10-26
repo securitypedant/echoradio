@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.5 — 2026-10-26
+
+- URL test reports redirects and warns when the target is a geo-restriction message or a fixed-length file rather than a live stream.
+- Stream cards and the player say "starting (about a minute)" while the live-stream backup waits for its first minute of recording.
+
 ## 2.0.4 — 2026-10-26
 
 - MP3 relay sends a meaningful ICY title ("11:21 London time", or the fallback state) instead of

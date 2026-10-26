@@ -62,11 +62,21 @@ def api_test_url():
         with urllib.request.urlopen(req, timeout=8) as resp:
             ctype = resp.headers.get("Content-Type", "")
             name = resp.headers.get("icy-name", "")
+            final_url = resp.geturl()
+            content_length = resp.headers.get("Content-Length")
             chunk = resp.read(4096)
     except urllib.error.HTTPError as exc:
         return jsonify({"ok": False, "message": f"HTTP {exc.code} {exc.reason}"})
     except Exception as exc:  # noqa: BLE001
         return jsonify({"ok": False, "message": f"Could not connect: {exc}"})
+    warnings = []
+    if final_url != url:
+        warnings.append(f"redirects to {final_url}")
+    lower_final = final_url.lower()
+    if any(k in lower_final for k in ("georestrict", "geo-restrict", "geoblock", "barker", "notavailable", "unavailable")):
+        warnings.append("this looks like a geo-restriction message, not the station (the server's location may be blocked)")
+    elif content_length and not ("mpegurl" in ctype.lower() or lower_final.endswith(".m3u8")):
+        warnings.append(f"a fixed-length file ({int(content_length) // 1024} KB), not a live stream")
     kind = "unknown"
     lower = ctype.lower()
     if "mpegurl" in lower or url.lower().split("?")[0].endswith(".m3u8") or chunk.startswith(b"#EXTM3U"):
@@ -80,7 +90,10 @@ def api_test_url():
     elif chunk[:3] == b"ID3" or (len(chunk) > 1 and chunk[0] == 0xFF and (chunk[1] & 0xE0) == 0xE0):
         kind = "MP3 stream"
     msg = f"Reachable: {kind}" + (f" ({ctype})" if ctype else "") + (f" · {name}" if name else "")
-    return jsonify({"ok": True, "message": msg, "content_type": ctype, "kind": kind, "icy_name": name})
+    if warnings:
+        msg += " — Warning: " + "; ".join(warnings)
+    return jsonify({"ok": not any("geo-restriction" in w for w in warnings), "message": msg, "content_type": ctype,
+                    "kind": kind, "icy_name": name, "final_url": final_url, "warnings": warnings})
 
 
 def healthz():
