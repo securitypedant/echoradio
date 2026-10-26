@@ -1,43 +1,38 @@
 {% extends "base.html" %}
-
-{% block title %}About Echo Radio{% endblock %}
-
+{% block title %}About · Echo Radio{% endblock %}
 {% block content %}
-<div class="container py-5">
+<div class="row justify-content-center">
+  <div class="col-lg-8">
     <div class="card shadow-sm">
-    <div class="card-body">
-        <div class="text-center mt-3 mb-3 d-flex justify-content-center align-items-center">
-            <i class="bi bi-soundwave fs-1 pe-2"></i>
-            <h1 class="display-4 fw-bold mb-0">About Echo Radio</h1>
+      <div class="card-body p-4 p-md-5">
+        <div class="text-center mb-4">
+          <i class="bi bi-soundwave display-4"></i>
+          <h1 class="display-6 fw-bold mb-1">About <span class="brand-font">Echo Radio</span></h1>
+          <p class="lead text-body-secondary">Your favourite stations, on your own clock.</p>
         </div>
-        <p class="lead text-muted text-center">
-            Listening to your favorite streams, anytime, anywhere.
-        </p>
 
-        <div class="row justify-content-center align-items-center">
-            <div class="col-md-8">
-                <h2 class="h4 mt-4">Why I Built This</h2>
-                    <p>
-                        Echo Radio is a passion project built to help people Listen to their favorite radio stations
-                        in their local timezone. Built by an Englishman living in San Francisco who really missed waking up 
-                        to his favorite UK radio shows.
-                    </p>
+        <h2 class="h5 mt-4">Why I built this</h2>
+        <p>Echo Radio is a passion project built to let people listen to their favourite radio stations in their local timezone. Built by an Englishman living in San Francisco who really missed waking up to his favourite UK radio shows.</p>
 
-                <h2 class="h4 mt-4">How It Works</h2>
-                    <ul>
-                        <li>Streams are recorded and saved locally each hour.</li>
-                        <li>The recorded audio is then played back in your chosen timezone.</li>
-                        <li>Add multiple streams and play them back from a simple web interface.</li>
-                    </ul>
-                <h2 class="h4 mt-4">Why "Echo"?</h2>
-                <p>Because sometimes the delay from an echo is exactly what you need...</p>
-            </div>
-        </div>
+        <h2 class="h5 mt-4">How it works</h2>
+        <ul>
+          <li>Each station is recorded around the clock in ten-second pieces.</li>
+          <li>When you listen, Echo Radio works out what the station was broadcasting at this wall-clock time in <em>its</em> timezone and plays that. Half-hour zones and daylight-saving changes are handled automatically.</li>
+          <li>The web player lets you rewind through the recent buffer, so a breakfast show can be started from the top even if you tuned in late.</li>
+          <li>Every stream also has a plain MP3 address for smart speakers, car radios and apps such as VLC.</li>
+        </ul>
+
+        <h2 class="h5 mt-4">Why “Echo”?</h2>
+        <p>Because sometimes the delay from an echo is exactly what you need.</p>
+
+        <h2 class="h5 mt-4">Under the hood</h2>
+        <p class="mb-0">Liquidsoap records and relays the audio, Icecast serves the MP3 streams, nginx fronts everything on one port, and a small Flask app generates the time-shifted HLS playlists and this interface. Version {{ app_version }}.</p>
 
         <div class="text-center mt-5">
-            <a href="/" class="btn btn-primary btn-lg">Back to live radio</a>
+          <a href="{{ url_for('home') }}" class="btn btn-primary btn-lg"><i class="bi bi-arrow-left me-1"></i>Back to streams</a>
         </div>
-        </div>
+      </div>
     </div>
+  </div>
 </div>
 {% endblock %}

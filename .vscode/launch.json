@@ -11,7 +11,7 @@
             "module": "flask",
             "cwd": "${workspaceFolder}/python",
             "env": {
-                "FLASK_APP": "python/app.py",
+                "FLASK_APP": "app.py",
                 "FLASK_DEBUG": "1"
             },
             "args": [

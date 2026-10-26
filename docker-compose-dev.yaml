@@ -1,14 +1,23 @@
 services:
   echoradio:
-    image: echoradio:latest
+    image: echoradio:dev
+    build:
+      context: .
+      args:
+        FLASK_ENV: development
     container_name: echoradio
     volumes:
-      - ./python:/app
+      - ./python:/app          # live-edit the app
+      - ./data-dev:/app/data   # recordings + config persist between restarts
     ports:
-      - "8000:8000"   # Icecast
-      - "8080:8080"   # Flask app
-      - "5678:5678"  # debugger port
+      - "8080:8080"
+      - "8000:8000"
+      - "5678:5678"  # debugpy
     restart: unless-stopped
     environment:
       - FLASK_ENV=development
       - FLASK_DEBUG=1
+      # Set to 1 to make the web app wait for the VS Code debugger before starting.
+      - DEBUGPY_WAIT=0
+      # Makes fallback -> recorded handover testable within minutes (default 120).
+      - ECHORADIO_MIN_DELAY_SECONDS=120

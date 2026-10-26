@@ -1,47 +1,96 @@
 {% extends "base.html" %}
+{% block title %}{{ s.name }} · Echo Radio{% endblock %}
 {% block content %}
-<style>
-  .fullscreen-container {
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    background: #f8f9fa;
-  }
-  .stream-title {
-    font-size: 2rem;
-    font-weight: bold;
-    margin-bottom: 0.5rem;
-  }
-  .stream-description {
-    font-size: 1rem;
-    color: #6c757d;
-    margin-bottom: 1.5rem;
-  }
-  .audio-player {
-    width: 100%;
-    max-width: 400px;
-    min-width: 300px;
-    margin-bottom: 2rem;
-  }
-</style>
+<div class="row justify-content-center">
+  <div class="col-lg-8 col-xl-7">
+    <a href="{{ url_for('home') }}" class="btn btn-link px-0 mb-2"><i class="bi bi-arrow-left"></i> All streams</a>
+    <div class="card shadow-sm player-card position-relative">
+      <button type="button" class="tap-to-play d-none" id="tapToPlay" aria-label="Tap to listen">
+        <span class="tap-icon"><i class="bi bi-play-fill"></i></span>
+        <span class="fs-5 fw-semibold">Tap to listen</span>
+        <span class="small">Your browser needs one tap before it will play sound.</span>
+      </button>
+      <div class="card-body p-4 p-md-5">
+        <div class="text-center">
+          <div class="player-art mx-auto mb-3"><i class="bi bi-soundwave"></i></div>
+          <h1 class="h3 mb-1">{{ s.name }}</h1>
+          {% if s.description %}<div class="text-body-secondary">{{ s.description }}</div>{% endif %}
+          <div class="small text-body-secondary mt-2">
+            {{ s.source_timezone.split('/')[-1].replace('_', ' ') }} <i class="bi bi-arrow-right"></i> {{ s.target_timezone.split('/')[-1].replace('_', ' ') }} · {{ s.delay_text }} behind
+          </div>
+        </div>
 
-<div class="fullscreen-container">
-  <div>
-    <div class="stream-title">{{ stream.name }}</div>
-    {% if stream.description %}
-      <div class="stream-description">{{ stream.description }}</div>
-    {% endif %}
+        <div class="now-line text-center mt-4" id="nowLine">
+          <div class="fs-1 fw-semibold tabular" id="airedClock">{{ s.aired_at }}</div>
+          <div class="text-body-secondary" id="airedLabel">station time · <span id="listenerClock">{{ s.listener_now }}</span> your time</div>
+          <div class="mt-1"><span class="badge rounded-pill text-bg-secondary" id="liveBadge">Connecting…</span> <span class="badge rounded-pill text-bg-warning-subtle border d-none" id="fillBadge">{{ s.backup_label }}</span></div>
+        </div>
 
-    <audio controls autoplay class="audio-player">
-      <source src="{{ icecast_public_hostname }}/{{ stream.stub }}" type="audio/mpeg">
-      Your browser does not support the audio element.
-    </audio>
-    <a href="{{ url_for('home') }}" class="btn btn-secondary">
-      <i class="bi bi-arrow-left"></i> Back
-    </a>
+        <div class="timeline mt-4">
+          <input type="range" class="form-range" id="timeline" min="0" max="1000" step="1" value="1000" aria-label="Playback position" disabled>
+          <div class="d-flex justify-content-between small text-body-secondary tabular">
+            <span id="tlStart">—</span>
+            <span id="tlHint">Drag to rewind up to {{ config.DVR_HOURS }} h</span>
+            <span id="tlEnd">—</span>
+          </div>
+        </div>
+
+        <div class="player-controls mt-3">
+          <div class="d-flex justify-content-center">
+            <button class="btn btn-primary btn-play" id="btnPlay" title="Play" aria-label="Play"><i class="bi bi-play-fill" id="playIcon"></i></button>
+          </div>
+          <div class="player-secondary mt-3">
+            <button class="btn btn-outline-secondary btn-ctl" id="btnHour" title="Start of this hour"><i class="bi bi-skip-start-fill"></i><span>Top of hour</span></button>
+            <button class="btn btn-outline-secondary btn-ctl" id="btnBack" title="Back 30 seconds"><i class="bi bi-arrow-counterclockwise"></i><span>Back 30 s</span></button>
+            <button class="btn btn-outline-secondary btn-ctl" id="btnFwd" title="Forward 30 seconds"><i class="bi bi-arrow-clockwise"></i><span>Ahead 30 s</span></button>
+            <button class="btn btn-outline-danger btn-ctl" id="btnLive" title="Jump to the current time-shifted position"><i class="bi bi-broadcast"></i><span>Live</span></button>
+          </div>
+          <div class="d-flex justify-content-between align-items-center gap-3 mt-3 flex-wrap player-extras">
+            <div class="d-flex align-items-center gap-2 volume">
+              <button class="btn btn-sm btn-link text-body" id="btnMute" title="Mute"><i class="bi bi-volume-up-fill" id="muteIcon"></i></button>
+              <input type="range" class="form-range" id="volume" min="0" max="1" step="0.01" value="1" aria-label="Volume">
+            </div>
+            <div class="dropdown ms-auto">
+              <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown"><i class="bi bi-moon-stars me-1"></i><span id="sleepLabel">Sleep timer</span></button>
+              <ul class="dropdown-menu dropdown-menu-end">
+                {% for m in (15, 30, 45, 60, 90) %}<li><button class="dropdown-item sleep-opt" type="button" data-minutes="{{ m }}">{{ m }} minutes</button></li>{% endfor %}
+                <li><hr class="dropdown-divider"></li>
+                <li><button class="dropdown-item sleep-opt" type="button" data-minutes="0">Off</button></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="text-center small text-body-secondary mt-4" id="statusLine"></div>
+
+        <details class="mt-4 small">
+          <summary class="text-body-secondary">Listen in another app</summary>
+          <div class="mt-2 d-grid gap-2">
+            <div class="input-group input-group-sm"><span class="input-group-text">MP3</span><input class="form-control" readonly value="{{ urls.mp3 }}"><button class="btn btn-outline-secondary copy-btn" data-copy="{{ urls.mp3 }}" type="button"><i class="bi bi-clipboard"></i></button></div>
+            <div class="input-group input-group-sm"><span class="input-group-text">HLS</span><input class="form-control" readonly value="{{ urls.hls }}"><button class="btn btn-outline-secondary copy-btn" data-copy="{{ urls.hls }}" type="button"><i class="bi bi-clipboard"></i></button></div>
+            <div class="text-body-secondary">Use the MP3 address for Sonos, car apps, VLC or any internet radio. The HLS address works in players that support rewinding.</div>
+          </div>
+        </details>
+      </div>
+    </div>
   </div>
 </div>
+
+<video id="media" playsinline preload="none" class="d-none" aria-hidden="true"></video>
+<script type="application/json" id="player-config">{{ {
+  "stub": s.stub,
+  "name": s.name,
+  "description": s.description,
+  "dvrUrl": url_for('hls_dvr', stub=s.stub),
+  "liveUrl": url_for('hls_live', stub=s.stub),
+  "apiUrl": url_for('api_stream', stub=s.stub),
+  "sourceTz": s.source_timezone,
+  "targetTz": s.target_timezone,
+  "leadSeconds": config.PLAYER_LEAD_SECONDS,
+  "autoplay": request.args.get('autoplay') == '1',
+  "artwork": url_for('static', filename='android-chrome-512x512.png', _external=True)
+}|tojson }}</script>
+{% endblock %}
+{% block scripts %}
+<script src="{{ asset_url('js/player.js') }}" defer></script>
 {% endblock %}

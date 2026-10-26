@@ -1,0 +1,48 @@
+{# Live-updating detail panel. Context: s #}
+<div class="row g-3">
+  <div class="col-md-4">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="text-body-secondary small">Status</div>
+        <div class="d-flex align-items-center gap-2 mt-1">
+          <span class="badge rounded-pill status-badge status-{{ s.status }}">{{ s.status_text }}</span>
+          <span class="small text-body-secondary">process {{ s.process_state|lower }}</span>
+        </div>
+        <dl class="row small mt-3 mb-0">
+          <dt class="col-6">Uptime</dt><dd class="col-6 text-end mb-1">{{ s.uptime or '—' }}</dd>
+          <dt class="col-6">Last segment</dt><dd class="col-6 text-end mb-1">{% if s.newest_segment_age is not none %}{{ s.newest_segment_age|round|int }} s ago{% else %}none{% endif %}</dd>
+          <dt class="col-6">Listeners (MP3)</dt><dd class="col-6 text-end mb-1">{{ s.listeners }}</dd>
+          <dt class="col-6">Quality</dt><dd class="col-6 text-end mb-1">AAC {{ s.bitrate[:-1] }} kbit/s</dd>
+          <dt class="col-6">Backup audio</dt><dd class="col-6 text-end mb-1">{{ s.backup_label }}</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="text-body-secondary small">Time shift</div>
+        <div class="fs-3 fw-semibold mt-1">{{ s.delay_text }} <span class="fs-6 fw-normal text-body-secondary">behind</span></div>
+        <dl class="row small mt-3 mb-0">
+          <dt class="col-6">Station time now</dt><dd class="col-6 text-end mb-1">{{ s.source_now }} <span class="text-body-secondary">{{ s.source_offset }}</span></dd>
+          <dt class="col-6">Your time now</dt><dd class="col-6 text-end mb-1">{{ s.listener_now }} <span class="text-body-secondary">{{ s.target_offset }}</span></dd>
+          <dt class="col-6">Playing content aired</dt><dd class="col-6 text-end mb-1">{{ s.aired_at }} station time</dd>
+          <dt class="col-6">Playing from</dt><dd class="col-6 text-end mb-1">{% if s.playing_kind == 'rec' %}recording{% elif s.playing_kind == 'fill' %}{{ s.backup_label|lower }}{% else %}—{% endif %}</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="text-body-secondary small">Recordings</div>
+        <div class="fs-3 fw-semibold mt-1">{{ s.hours_recorded }} h <span class="fs-6 fw-normal text-body-secondary">of the last 24</span></div>
+        <div class="small text-body-secondary">{{ s.disk_mb }} MB on disk</div>
+        <div class="coverage-bars mt-3" title="Hourly recording coverage, oldest left">
+          {% for c in s.coverage %}<span class="bar" style="--fill: {{ c }}" title="{{ 24 - loop.index }}h ago: {{ c|pct }}"></span>{% endfor %}
+        </div>
+        <div class="d-flex justify-content-between small text-body-secondary mt-1"><span>24 h ago</span><span>now</span></div>
+      </div>
+    </div>
+  </div>
+</div>

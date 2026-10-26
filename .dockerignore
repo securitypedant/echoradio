@@ -1,2 +1,8 @@
-python/data/streams/
-python/data/supervisord_configs/
+.git
+python/data/
+python/__pycache__/
+python/**/__pycache__/
+python/.pytest_cache/
+data-dev/
+.venv/
+echoradio-screenshot.png

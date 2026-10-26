@@ -1,0 +1,81 @@
+# Changelog
+
+## 2.0.3 — 2026-10-25
+
+- Streams have an editable **URL name** (Icecast mount), used for the `/listen/`, HLS and player
+  links; defaults to the name-derived value and must be unique.
+- **Browse stations** in the add/edit form: searches a curated BBC list and the community
+  Radio Browser index, fills in name, URL and description, and pre-selects the station timezone
+  when the country has a single one.
+- Player: much larger play button and a four-button grid (top of hour, back/ahead 30 s, live) sized
+  for use in a car; volume slider hidden on touch devices. Safari and iOS use the built-in HLS
+  player; playback errors now say what failed.
+- Listener count includes web-player (HLS) listeners, not just Icecast MP3 listeners.
+- The "Live stream" backup now plays the station continuously (about a minute behind real time)
+  while the buffer fills, instead of jumping between recent segments.
+- Sleep timer shows the remaining time counting down.
+- Manage menu on stream cards no longer renders behind neighbouring cards.
+- Copyable stream links keep the port when the UI is served on a non-standard port.
+- Dropdowns on the player page (sleep timer) work after arriving via a Listen button: global
+  scripts moved to the document head so the same-document navigation does not load them twice.
+
+## 2.0.2 — 2026-10-25
+
+- Start-up no longer blocks on slow work. Fallback audio generation and the conversion of v1 hourly
+  recordings now run in a background maintenance task after nginx, Icecast and the web app are up,
+  so health checks pass and Swarm no longer restarts the task mid-conversion. Each converted hour is
+  removed as soon as it is done, so an interrupted conversion resumes instead of starting over.
+- Health check start period raised to two minutes.
+
+## 2.0.1 — 2026-10-25
+
+- Fix start-up failure (`PermissionError: /app/data/secret_key`) when the data volume is owned by
+  root, as is typical for bind mounts and Docker Swarm volumes. The container now starts as root,
+  fixes ownership of the data directory, then drops privileges to the `streamer` user before
+  running anything. A missing or unwritable data directory produces a clear error instead of a
+  traceback.
+
+## 2.0.0 — 2026-10-25
+
+A ground-up rework of the recording engine, the container and the web UI.
+
+### Recording and playback
+- Stations are now recorded as 10-second AAC/MPEG-TS HLS segments instead of 24 hourly MP3 files.
+- The time shift is computed on every request from the station and listener timezones. Half-hour
+  zones and daylight-saving changes on either side are handled exactly; the old whole-hour,
+  computed-once model is gone.
+- Gaps in the recording (station offline, buffer still filling) are filled with codec-matched
+  fallback audio (bird song, voice, silence) or the live station, spliced with HLS discontinuities.
+- New web player with a scrubbable timeline across the recent buffer, catch-up from the start of
+  the hour, lock-screen / headset controls (Media Session), sleep timer and an installable PWA.
+- Every stream still has a plain MP3 URL (`/listen/<stream>`) for smart speakers and car apps;
+  liquidsoap relays the time-shifted playlist to Icecast.
+- Configurable retention (default 30 h), rewind window (default 4 h) and per-stream bitrate.
+- Log viewer (Settings → Logs) with search, regular expressions, errors-only filter, follow mode
+  and download, covering the server logs and each stream's liquidsoap log.
+
+### Container
+- Liquidsoap 2.4.6 installed from Savonet's prebuilt package (amd64 and arm64). The image builds
+  in under a minute instead of compiling OCaml for an hour.
+- Base image is `debian:trixie-slim`; everything runs as the unprivileged `streamer` user.
+- nginx fronts the web UI, HLS and the Icecast relay on a single port (8080). Port 8000 is still
+  exposed for direct Icecast access.
+- cron and logrotate are gone; supervisord, Icecast and the app rotate their own logs.
+- `/app/data` is a declared volume; `docker-compose.yaml` uses a named volume so upgrades keep
+  your configuration and recordings.
+- `HEALTHCHECK` now queries the app (`/healthz`).
+
+### Security
+- Admin mode is enforced server-side on every management route (previously only hidden in the UI).
+- A random Flask secret key is generated and persisted on first start (override with `SECRET_KEY`).
+- CSRF protection on all forms and API calls; `SameSite=Lax`, `HttpOnly` session cookie.
+- Icecast passwords are masked in the settings page.
+
+### Upgrading from 1.x
+- Settings and stream definitions are kept. v1 hourly recordings are converted into the new
+  segment layout where possible; otherwise the buffer refills over the next day while fallback
+  audio plays.
+- The Icecast public hostname / protocol / port settings were replaced by an optional
+  "Public address", since the UI and the streams now share one origin.
+- If you ran 1.x without a volume, export the configuration from the old Settings page and import
+  it into 2.0.
