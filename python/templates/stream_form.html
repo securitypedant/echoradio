@@ -127,16 +127,16 @@
           <div class="row g-3">
             <div class="col-md-5">
               <label for="guide_provider" class="form-label">Source of the schedule</label>
+              <input type="hidden" name="guide_auto" value="1">
               <select class="form-select" id="guide_provider" name="guide_provider">
-                <option value="none" {% if guide.provider == 'none' %}selected{% endif %}>None</option>
-                <option value="bbc" {% if guide.provider == 'bbc' %}selected{% endif %}>BBC Sounds (automatic)</option>
-                <option value="manual" {% if guide.provider == 'manual' %}selected{% endif %}>Weekly schedule I enter</option>
+                {% for key, label in guide_providers.items() %}<option value="{{ key }}" {% if guide.provider == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
               </select>
+              <div class="form-text">Leave on “None” and the right source is picked from the stream URL when one is known.</div>
             </div>
-            <div class="col-md-7 guide-bbc">
-              <label for="bbc_service" class="form-label">BBC service id</label>
-              <input type="text" class="form-control" id="bbc_service" name="bbc_service" value="{{ guide.bbc_service }}" placeholder="auto-detected from the URL, e.g. bbc_radio_two" pattern="bbc_[a-z0-9_]+">
-              <div class="form-text">Leave blank to detect it from the stream URL (works for the BBC list in the directory).</div>
+            <div class="col-md-7 guide-service" data-help='{{ guide_help|tojson|forceescape }}'>
+              <label for="guide_service" class="form-label" id="guide_service_label">Station id</label>
+              <input type="text" class="form-control" id="guide_service" name="guide_service" value="{{ guide.service }}" placeholder="detected from the stream URL when possible">
+              <div class="form-text" id="guide_service_help">Leave blank to detect it from the stream URL.</div>
             </div>
             <div class="col-12 guide-manual">
               <div class="d-flex justify-content-between align-items-center mb-2">

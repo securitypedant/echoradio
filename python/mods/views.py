@@ -194,12 +194,17 @@ def _parse_stream_form(form, exclude_stub: str | None = None) -> tuple[dict, lis
 
 def _parse_guide_form(form, stream_url: str) -> dict:
     provider = form.get("guide_provider") or "none"
-    if provider not in ("none", "bbc", "manual"):
+    if provider not in guide.PROVIDERS:
         provider = "none"
-    service = (form.get("bbc_service") or "").strip().lower()
-    if provider == "bbc" and not service:
-        service = guide.guess_bbc_service(stream_url)
-    if service and not re.match(r"^bbc_[a-z0-9_]{2,40}$", service):
+    if provider == "none" and form.get("guide_auto") == "1":
+        provider = guide.guess_provider(stream_url)
+    service = (form.get("guide_service") or "").strip()
+    if provider in guide.DAY_FETCHERS:
+        if not service:
+            service = guide.guess_service(provider, stream_url)
+        if service and not guide.valid_service(provider, service):
+            service = ""
+    else:
         service = ""
     manual = []
     try:
@@ -211,12 +216,13 @@ def _parse_guide_form(form, stream_url: str) -> dict:
                                "subtitle": str(e.get("subtitle") or "")[:120]})
     except (ValueError, TypeError, AttributeError):
         manual = []
-    return {"provider": provider, "bbc_service": service, "manual": manual}
+    return {"provider": provider, "service": service, "manual": manual}
 
 
 def _form_context(**extra) -> dict:
     ctx = {"timezones": grouped_timezones(), "backup_kinds": streams.BACKUP_KINDS,
-           "bitrates": streams.BITRATES, "guide": {"provider": "none", "bbc_service": "", "manual": []}}
+           "bitrates": streams.BITRATES, "guide": {"provider": "none", "service": "", "manual": []},
+           "guide_providers": guide.PROVIDER_LABELS, "guide_help": guide.SERVICE_HELP}
     ctx.update(extra)
     return ctx
 

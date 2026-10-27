@@ -114,11 +114,17 @@
     ui.listener.textContent = fmtTgt.format(Date.now());
     const behind = r.live - t;
     if (!started) badge('Ready', 'text-bg-secondary');
-    else if (behind < 20) badge('Live', 'is-live');
+    else if (behind < 20) badge('On time', 'is-live');
     else badge('Rewound ' + humanize(behind), 'is-rewound');
     ui.tlHint.textContent = (dragging && pc) ? ('Go to ' + fmtSrc.format(pc) + ' station time') : hintDefault;
     const nearLive = behind < 20;
-    ui.fillBadge.classList.toggle('d-none', !(apiState && apiState.playing_kind === 'fill' && nearLive && started));
+    if (apiState && apiState.fill_label) ui.fillBadge.textContent = apiState.fill_label;
+    const filling = !!(apiState && apiState.playing_kind === 'fill' && nearLive && started);
+    ui.fillBadge.classList.toggle('d-none', !filling);
+    // While the live station is filling a gap, the schedule for the delayed time does not apply.
+    const fillingLive = filling && apiState.backup_track === 'live';
+    if (guideStrip) guideStrip.classList.toggle('d-none', fillingLive);
+    if (progLine) progLine.classList.toggle('guide-hidden', fillingLive);
   }
   every(update, 500);
 
@@ -411,8 +417,8 @@
     const pdt = r ? r.pdtAt(media.currentTime) : null;
     const p = pdt !== null ? programmeAt(pdt) : null;
     if (!progLine) return;
-    if (p) { progText.textContent = progLabel(p); progLine.classList.remove('d-none'); }
-    else if (programmes.length) { progLine.classList.add('d-none'); }
+    if (p && !progLine.classList.contains('guide-hidden')) { progText.textContent = progLabel(p); progLine.classList.remove('d-none'); }
+    else { progLine.classList.add('d-none'); }
   }
   function guideHourSeek(r, pdt) {
     if (!programmes.length) return false;
@@ -544,7 +550,7 @@
 
   // ---- Spectrum analyser (Web Audio) -----------------------------------------------
   const vizBtn = $('btnViz'), canvas = $('analyser');
-  let audioCtx = null, analyser = null, vizOn = false, vizRaf = null, peaks = [];
+  let audioCtx = null, analyser = null, vizOn = false, vizRaf = null, peaks = [], vizFrame = 0, capColor = '#fff';
   const BANDS = 28;
   function vizSetup() {
     if (audioCtx) return true;
@@ -577,6 +583,7 @@
     const data = new Uint8Array(analyser.frequencyBinCount);
     analyser.getByteFrequencyData(data);
     const nyquist = audioCtx.sampleRate / 2, minF = 40, maxF = 16000;
+    if ((vizFrame++ % 30) === 0) capColor = getComputedStyle(document.body).color || '#fff';
     const gap = 2, bw = (w - gap * (BANDS - 1)) / BANDS;
     for (let i = 0; i < BANDS; i++) {
       const f0 = minF * Math.pow(maxF / minF, i / BANDS), f1 = minF * Math.pow(maxF / minF, (i + 1) / BANDS);
@@ -593,7 +600,7 @@
       const seg = 4, segGap = 1;
       for (let y = h - seg; y > h - bh; y -= seg + segGap) ctx2d.fillRect(x, y, bw, seg);
       peaks[i] = Math.max((peaks[i] || 0) - 1.2, bh);
-      ctx2d.fillStyle = '#ffffff';
+      ctx2d.fillStyle = capColor;
       ctx2d.fillRect(x, h - peaks[i] - 2, bw, 2);
     }
   }

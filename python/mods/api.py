@@ -18,7 +18,7 @@ def _public(s: dict) -> dict:
             "source_timezone", "target_timezone", "delay_seconds", "delay_text", "aired_at",
             "aired_at_iso", "listener_now", "source_now", "source_offset", "target_offset",
             "coverage", "hours_recorded", "listeners", "listeners_mp3", "listeners_hls", "backup_track",
-            "backup_label", "bitrate", "mount", "now_playing_song", "artwork_url", "aired_day", "source_city", "target_city", "now_programme", "recording_mode")
+            "backup_label", "bitrate", "mount", "now_playing_song", "artwork_url", "aired_day", "source_city", "target_city", "now_programme", "recording_mode", "fill_label")
     out = {k: s.get(k) for k in keys}
     out["urls"] = stream_urls(s)
     return out

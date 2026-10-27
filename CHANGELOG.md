@@ -3,9 +3,12 @@
 ## 2.1.0 — 2026-10-27
 
 ### Player
-- **Programme guide** on the timeline: BBC stations get their schedule automatically (BBC Sounds
-  broadcasts feed, detected from the stream URL); any station can have a weekly schedule entered in
-  the stream form. Shows appear as blocks under the timeline (click to jump), the current show is
+- **Programme guide** on the timeline, filled automatically for stations with a public schedule
+  feed: BBC, KEXP (with song titles), Bauer UK (Absolute, Magic, KISS, Greatest Hits …), RadioDNS
+  EPG (Classic FM, LBC, Heart, Capital, Virgin, Times Radio, Deutschlandfunk, ARD stations …), ORF
+  (Ö1, Ö3, FM4), ABC Australia (RN, triple j, local stations) and RTÉ (Radio 1, 2FM, lyric fm,
+  RnaG); the provider and station id are detected from the stream URL. Any other station can have
+  a weekly schedule entered in the stream form. Research notes: `docs/schedule-feeds.md`. Shows appear as blocks under the timeline (click to jump), the current show is
   named in the player, on the cards and in the Icecast title, and "Top of hour" becomes
   "Start of show" (press again for the previous show).
 - **Markers**: "Mark this moment" saves the aired time with the song or show name; markers appear as

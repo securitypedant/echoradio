@@ -36,7 +36,30 @@
     el.addEventListener('hidden.bs.toast', () => el.remove());
     t.show();
   };
+  function marquee() {
+    document.querySelectorAll('.mq-line').forEach((line) => {
+      const inner = line.querySelector('.mq');
+      if (!inner) return;
+      const icon = line.querySelector('.bi');
+      const avail = line.clientWidth - (icon ? icon.getBoundingClientRect().width + 8 : 0);
+      const overflow = inner.scrollWidth - avail;
+      if (overflow > 4) {
+        const duration = 6 + overflow / 25;           // 3 s pause + scroll + 2 s pause, scaled to length
+        inner.style.setProperty('--mq-shift', (-overflow) + 'px');
+        inner.style.setProperty('--mq-duration', duration + 's');
+        // Phase from a global clock so re-rendered cards continue the same scroll instead of restarting.
+        inner.style.animationDelay = (-((performance.now() / 1000) % duration)) + 's';
+        line.classList.add('marquee');
+      } else {
+        line.classList.remove('marquee');
+        inner.style.animationDelay = '';
+      }
+    });
+  }
+  window.addEventListener('resize', marquee);
+
   function settle() {
+    marquee();
     document.querySelectorAll('.toast[data-autoshow]').forEach((el) => {
       el.removeAttribute('data-autoshow');
       const t = new bootstrap.Toast(el, { delay: 6000 });

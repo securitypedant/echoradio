@@ -17,9 +17,10 @@ your 7 am.
   or hour, mark moments to come back to, speed up talk radio, watch a spectrum analyser, send it to
   AirPlay or a Chromecast, control playback from your lock screen or headphones, set a sleep timer,
   install it as an app.
-- **Programme guide.** BBC stations get their schedule automatically; other stations can have a
-  weekly schedule typed in. The current show is named in the player, on the cards and in the
-  Icecast stream title.
+- **Programme guide.** Schedules are fetched automatically for the BBC, KEXP, Bauer UK stations,
+  stations with a RadioDNS EPG (Global, News UK, Deutschlandfunk, ARD …), ORF, ABC Australia and
+  RTÉ, detected from the stream URL; other stations can have a weekly schedule typed in. The
+  current show is named in the player, on the cards and in the Icecast stream title.
 - **Plain MP3 streams too.** Every station has a `http://…/listen/<name>` URL for Sonos, car apps,
   VLC and anything else that plays internet radio, plus an HLS URL.
 - **Fallback audio.** While the buffer fills, or if the station goes offline, listeners hear bird

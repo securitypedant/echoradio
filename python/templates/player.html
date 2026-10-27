@@ -35,7 +35,7 @@
             </div>
             <div class="time-badges">
               <span class="badge rounded-pill text-bg-secondary" id="liveBadge">Connecting…</span>
-              <span class="badge rounded-pill text-bg-warning-subtle border d-none" id="fillBadge">{{ s.backup_label }}</span>
+              <span class="badge rounded-pill text-bg-warning-subtle border d-none" id="fillBadge" title="Nothing was recorded for this moment, so the backup audio plays instead">{{ s.fill_label }}</span>
             </div>
           </div>
           <div class="prog-line text-truncate text-center small {% if not (s.now_programme and s.now_programme.title) %}d-none{% endif %}" id="progLine"><i class="bi bi-broadcast me-1 text-body-secondary"></i><span id="progText">{% if s.now_programme %}{{ s.now_programme.title }}{% if s.now_programme.subtitle %} — {{ s.now_programme.subtitle }}{% endif %}{% endif %}</span></div>
@@ -60,7 +60,7 @@
             <button class="btn btn-outline-secondary btn-ctl" id="btnHour" title="Start of this hour; press again for the previous hour"><i class="bi bi-skip-start-fill"></i><span>Top of hour</span></button>
             <button class="btn btn-outline-secondary btn-ctl" id="btnBack" title="Back 30 seconds"><i class="bi bi-arrow-counterclockwise"></i><span>Back 30 s</span></button>
             <button class="btn btn-outline-secondary btn-ctl" id="btnFwd" title="Forward 30 seconds"><i class="bi bi-arrow-clockwise"></i><span>Ahead 30 s</span></button>
-            <button class="btn btn-outline-danger btn-ctl" id="btnLive" title="Jump to the current time-shifted position"><i class="bi bi-broadcast"></i><span>Live</span></button>
+            <button class="btn btn-outline-danger btn-ctl" id="btnLive" title="Jump back to the current time-shifted position"><i class="bi bi-skip-end-fill"></i><span>Now</span></button>
           </div>
           <div class="d-flex justify-content-between align-items-center gap-2 mt-3 flex-wrap player-extras">
             <div class="d-flex align-items-center gap-2 volume">

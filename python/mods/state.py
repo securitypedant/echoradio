@@ -126,15 +126,19 @@ def stream_state(meta: dict, now: datetime | None = None, stats: dict | None = N
     song = songlog.song_at(stub, instant) if playing_kind == "rec" else None
     try:
         prog = guide.programme_at(meta, instant)
+        if song is None and playing_kind == "rec":
+            song = guide.external_song_at(meta, instant)
     except Exception:  # noqa: BLE001 - never let the guide break the page
         prog = None
     stats = stats if stats is not None else icecast.fetch_stats()
     mount = stats.get(stub, {})
     backup_label = streams.BACKUP_KINDS.get(kind, kind)
+    fill_names = {"live": "live station", "birdsong": "bird song", "voice": "voice message", "silence": "silence"}
+    fill_label = f"No recording · {fill_names.get(kind, kind)}"
     if kind == "live" and playing_kind == "fill" and running:
         oldest = idx.oldest_start()
         if oldest is None or now_ts - oldest < LIVE_LAG_SECONDS + 15:
-            backup_label = "Live stream · starting (about a minute)"
+            fill_label = "No recording yet · live station in about a minute"
     return {
         **meta,
         "status": status,
@@ -153,6 +157,7 @@ def stream_state(meta: dict, now: datetime | None = None, stats: dict | None = N
         "listeners_hls": hls_listeners(stub),
         "listeners": mount.get("listeners", 0) + hls_listeners(stub),
         "backup_label": backup_label,
+        "fill_label": fill_label,
         **info,
     }
 
@@ -250,10 +255,12 @@ def now_playing_title(meta: dict, now: datetime | None = None) -> str:
         return f"{streams.BACKUP_KINDS.get(kind, kind)} · buffer filling"
     base = f"{info['aired_at']} {city} time"
     song = songlog.song_at(meta["stub"], instant)
-    if song:
-        return f"{song[:90]} · {base}"
     try:
+        if not song:
+            song = guide.external_song_at(meta, instant)
         prog = guide.programme_at(meta, instant)
     except Exception:  # noqa: BLE001
         prog = None
+    if song:
+        return f"{song[:90]} · {base}"
     return f"{prog['title'][:90]} · {base}" if prog and prog.get("title") else base

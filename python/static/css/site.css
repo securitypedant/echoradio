@@ -203,10 +203,38 @@ body { background: var(--er-bg); min-height: 100vh; }
 .extras-mid .btn.active-feature { background: var(--er-accent); border-color: var(--er-accent); color: #fff; }
 
 /* Spectrum analyser */
-.analyser { display: block; width: 100%; height: 96px; border-radius: .5rem; background: #0b0f1d; }
+.analyser { display: block; width: 100%; height: 96px; background: transparent; }
 @media (max-width: 575.98px) { .analyser { height: 72px; } .player-extras { gap: .4rem; } }
 
 /* Drag to reorder */
 .drag-handle { cursor: grab; font-size: 1.1rem; line-height: 1; touch-action: none; }
 .drag-handle:active { cursor: grabbing; }
 .drag-ghost { opacity: .4; }
+
+/* Card timezone row stays on one line */
+.tz-chip { min-width: 0; }
+.tz-chip .bi { flex-shrink: 0; }
+
+/* Delay shown between the timezone pills: "→ 7h" */
+.tz-delay { display: inline-flex; flex-direction: column; align-items: center; line-height: 1; color: var(--bs-secondary-color); font-size: .7rem; font-weight: 600; min-width: 1.8rem; }
+.tz-delay .bi { font-size: .95rem; line-height: 1; }
+
+/* Now-playing metadata block on cards: visually distinct from the clock line */
+.now-meta { margin-top: .6rem; padding: .55rem .8rem; border-radius: .5rem; background: var(--bs-tertiary-bg); border-left: 3px solid var(--er-accent); line-height: 1.45; }
+.now-meta .show { font-weight: 600; font-size: .95rem; }
+.now-meta .show .presenter { font-weight: 400; color: var(--bs-secondary-color); }
+.now-meta .song { font-size: .9rem; color: var(--bs-secondary-color); margin-top: .15rem; }
+.now-meta .bi { color: var(--er-accent); }
+.stream-card .now-playing .fs-5 { font-size: 1.4rem !important; }
+.stream-card .card-title { font-size: 1.3rem; }
+
+/* Marquee for overflowing metadata: pause, scroll the whole line, pause, reset */
+.mq-line { display: flex; align-items: center; white-space: nowrap; overflow: hidden; }
+.mq-line .mq { display: inline-block; will-change: transform; }
+.mq-line.marquee .mq { animation: mq-scroll var(--mq-duration, 12s) linear infinite; }
+@keyframes mq-scroll {
+  0%, 25%   { transform: translateX(0); }
+  78%, 99.9% { transform: translateX(var(--mq-shift, 0)); }
+  100%      { transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) { .mq-line.marquee .mq { animation: none; } }

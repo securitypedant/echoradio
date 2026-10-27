@@ -173,9 +173,19 @@
   let shows = [];
   try { shows = JSON.parse(hidden.value || '[]'); } catch (e) { shows = []; }
 
+  const serviceBox = document.querySelector('.guide-service');
+  let help = {};
+  try { help = JSON.parse(serviceBox.dataset.help || '{}'); } catch (e) { help = {}; }
   function sync() {
-    document.querySelectorAll('.guide-bbc').forEach((el) => el.classList.toggle('d-none', provider.value !== 'bbc'));
-    document.querySelectorAll('.guide-manual').forEach((el) => el.classList.toggle('d-none', provider.value !== 'manual'));
+    const v = provider.value;
+    const h = help[v];
+    serviceBox.classList.toggle('d-none', !h);
+    if (h) {
+      document.getElementById('guide_service_label').textContent = h[0];
+      document.getElementById('guide_service').placeholder = h[1];
+      document.getElementById('guide_service_help').textContent = 'Leave blank to detect it from the stream URL where possible. ' + h[1];
+    }
+    document.querySelectorAll('.guide-manual').forEach((el) => el.classList.toggle('d-none', v !== 'manual'));
   }
   function serialize() { hidden.value = JSON.stringify(shows); }
   function render() {
