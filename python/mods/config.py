@@ -107,11 +107,15 @@ class Config:
     ICECAST_PRIVATE_HOST = os.environ.get("ICECAST_PRIVATE_HOST", "127.0.0.1")
     ICECAST_PRIVATE_PORT = int(os.environ.get("ICECAST_PRIVATE_PORT", "8000"))
     WEB_PRIVATE_URL = os.environ.get("WEB_PRIVATE_URL", "http://127.0.0.1:5000")
+    # liquidsoap's relay reads playlists/segments through nginx: proper keep-alive handling and
+    # segments served straight from disk (gunicorn closes idle connections after a few seconds,
+    # which made ffmpeg stall with "Error reading HTTP response: End of file").
+    RELAY_BASE_URL = os.environ.get("ECHORADIO_RELAY_BASE_URL", "http://127.0.0.1:8080")
 
     # Never serve closer to the recording edge than this (seconds).
     MIN_DELAY_SECONDS = int(os.environ.get("ECHORADIO_MIN_DELAY_SECONDS", "120"))
     # Lead applied to the relay playlist so the icecast MP3 output lands on the delayed instant.
-    RELAY_LEAD_SECONDS = int(os.environ.get("ECHORADIO_RELAY_LEAD_SECONDS", "35"))
+    RELAY_LEAD_SECONDS = int(os.environ.get("ECHORADIO_RELAY_LEAD_SECONDS", "40"))
     # hls.js starts 3 target durations behind the playlist end by default.
     PLAYER_LEAD_SECONDS = 30
     DEFAULT_BITRATE = "128k"

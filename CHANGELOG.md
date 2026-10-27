@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.7 — 2026-10-27
+
+- Fix relay stalls in production ("Latency is too high: we must catchup N seconds" on
+  `clock.icecast`, Icecast EPIPE drops): the relay now reads playlists and segments through nginx
+  (gunicorn closed idle keep-alive connections after 2 s, making ffmpeg report
+  "Error reading HTTP response: End of file" and stall), gunicorn keep-alive raised to 75 s, and
+  both the source input and the relay input run in their own clocks behind `buffer()` so a slow
+  fetch can never stall the recorder or the Icecast output.
+
 ## 2.0.6 — 2026-10-26
 
 - Recorder runs on the steady CPU clock with a 30 s input buffer, so stalls and bursts from flaky

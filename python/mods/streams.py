@@ -181,7 +181,7 @@ def render_stream_script(meta: dict, server_cfg: dict | None = None) -> str:
         "user_agent": _liq_str(USER_AGENT),
         "bitrate": meta.get("bitrate", Config.DEFAULT_BITRATE),
         "hls_dir": os.path.join(stream_dir(stub), "hls"),
-        "relay_playlist_url": f"{Config.WEB_PRIVATE_URL}/hls/{stub}/relay.m3u8",
+        "relay_playlist_url": f"{Config.RELAY_BASE_URL}/hls/{stub}/relay.m3u8",
         "title_url": f"{Config.WEB_PRIVATE_URL}/api/streams/{stub}/title",
         "events_log": os.path.join(stream_dir(stub), "events.log"),
         "stream_url": _liq_str(f"{(server_cfg.get('public_base_url') or '').rstrip('/')}/player/{meta.get('mount') or stub}"
