@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 
 import delay as delay_mod
 import hls
-from mods import icecast, songlog, streams, supervisor
+from mods import disk, guide, health, icecast, markers, songlog, streams, supervisor
 from mods.config import Config
 from mods.logger import logger
 
@@ -85,6 +85,11 @@ def delay_info(meta: dict, now: datetime | None = None) -> dict:
         "source_instant": instant.timestamp(),
         "aired_at": instant.astimezone(src_tz).strftime("%H:%M"),
         "aired_at_iso": instant.astimezone(src_tz).isoformat(),
+        "aired_day": ("today" if instant.astimezone(src_tz).date() == now.astimezone(src_tz).date()
+                      else "yesterday" if (now.astimezone(src_tz).date() - instant.astimezone(src_tz).date()).days == 1
+                      else instant.astimezone(src_tz).strftime("%a %d %b")),
+        "source_city": meta["source_timezone"].split("/")[-1].replace("_", " "),
+        "target_city": meta["target_timezone"].split("/")[-1].replace("_", " "),
         "listener_now": now.astimezone(tgt_tz).strftime("%H:%M"),
         "source_now": now.astimezone(src_tz).strftime("%H:%M"),
         "source_offset": delay_mod.zone_offset_label(meta["source_timezone"], now),
@@ -119,6 +124,10 @@ def stream_state(meta: dict, now: datetime | None = None, stats: dict | None = N
     playing_kind = playing[-1].kind if playing else None
     coverage = idx.coverage(now_ts - 24 * 3600, now_ts, 3600.0)
     song = songlog.song_at(stub, instant) if playing_kind == "rec" else None
+    try:
+        prog = guide.programme_at(meta, instant)
+    except Exception:  # noqa: BLE001 - never let the guide break the page
+        prog = None
     stats = stats if stats is not None else icecast.fetch_stats()
     mount = stats.get(stub, {})
     backup_label = streams.BACKUP_KINDS.get(kind, kind)
@@ -136,6 +145,7 @@ def stream_state(meta: dict, now: datetime | None = None, stats: dict | None = N
         "newest_segment_age": (now_ts - newest) if newest is not None else None,
         "playing_kind": playing_kind,          # "rec", "fill" or None
         "now_playing_song": song,
+        "now_programme": prog,
         "coverage": coverage,                  # 24 hourly fractions, oldest first
         "hours_recorded": round(sum(coverage), 1),
         "disk_mb": round(idx.disk_bytes() / (1024 * 1024)),
@@ -158,16 +168,53 @@ def all_states(now: datetime | None = None) -> list[dict]:
 _housekeeper_started = False
 
 
+_disk_state = {"low": False, "trimmed_hours": 0, "checked": 0.0}
+
+
+def disk_status() -> dict:
+    info = disk.usage()
+    info.update({"trimmed_hours": _disk_state["trimmed_hours"]})
+    return info
+
+
 def prune_all(retention_hours: int) -> None:
     cutoff = time.time() - retention_hours * 3600
-    for meta in streams.all_streams():
+    all_meta = streams.all_streams()
+    for meta in all_meta:
         try:
-            removed = index_for(meta).prune(cutoff, meta.get("backup_track", "birdsong"), live_shift(meta))
+            idx = index_for(meta)
+            removed = idx.prune(cutoff, meta.get("backup_track", "birdsong"), live_shift(meta))
             songlog.prune(meta["stub"], cutoff)
+            markers.prune(meta["stub"], cutoff)
+            health.record_completed_hours(meta, idx)
             if removed:
                 logger.info("Pruned %d segments from %s", removed, meta["stub"])
         except Exception:  # noqa: BLE001
-            logger.exception("Prune failed for %s", meta["stub"])
+            logger.exception("Housekeeping failed for %s", meta["stub"])
+    enforce_disk_guardrail(all_meta, retention_hours)
+
+
+def enforce_disk_guardrail(all_meta: list[dict], retention_hours: int) -> None:
+    """If the volume is nearly full, trim the oldest recordings (all streams equally) until it is not."""
+    info = disk.usage()
+    _disk_state["checked"] = time.time()
+    _disk_state["low"] = info["low"]
+    if not info["low"] or not all_meta:
+        _disk_state["trimmed_hours"] = 0
+        return
+    hours = retention_hours
+    while info["low"] and hours > 2:
+        hours -= 1
+        cutoff = time.time() - hours * 3600
+        for meta in all_meta:
+            try:
+                index_for(meta).prune(cutoff, meta.get("backup_track", "birdsong"), live_shift(meta))
+            except Exception:  # noqa: BLE001
+                logger.exception("Guardrail prune failed for %s", meta["stub"])
+        info = disk.usage()
+    _disk_state["trimmed_hours"] = retention_hours - hours
+    logger.warning("Low disk space: trimmed recordings to %d h (free %s, want %s)", hours,
+                   disk.human(info["free"]), disk.human(info["threshold"]))
 
 
 def start_housekeeper(get_retention_hours, interval: int = 600) -> None:
@@ -203,4 +250,10 @@ def now_playing_title(meta: dict, now: datetime | None = None) -> str:
         return f"{streams.BACKUP_KINDS.get(kind, kind)} · buffer filling"
     base = f"{info['aired_at']} {city} time"
     song = songlog.song_at(meta["stub"], instant)
-    return f"{song[:90]} · {base}" if song else base
+    if song:
+        return f"{song[:90]} · {base}"
+    try:
+        prog = guide.programme_at(meta, instant)
+    except Exception:  # noqa: BLE001
+        prog = None
+    return f"{prog['title'][:90]} · {base}" if prog and prog.get("title") else base

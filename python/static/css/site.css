@@ -158,3 +158,55 @@ body { background: var(--er-bg); min-height: 100vh; }
 .artwork-preview { width: 48px; height: 48px; border-radius: 10px; object-fit: cover; background: #fff; }
 .player-art img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
 .song-line { font-size: .95rem; margin-top: .25rem; }
+
+/* Sleep timer button while a timer is running */
+.player-extras .sleep-active { background: var(--er-accent) !important; border-color: var(--er-accent) !important; color: #fff !important; font-weight: 600; }
+.player-extras .sleep-active .bi { animation: blink 2s ease-in-out infinite; }
+
+/* Player time row: "<city> time  07:20:15 PM | Now in <city>  07:57 PM | Rewound 33m" on one line */
+.time-row { display: flex; align-items: center; justify-content: center; gap: .75rem 1rem; flex-wrap: nowrap; }
+.time-cell { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.time-label { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: var(--bs-secondary-color); white-space: nowrap; }
+.time-value { font-size: 2rem; font-weight: 600; line-height: 1.1; white-space: nowrap; }
+.time-value-sm { font-size: 1.5rem; font-weight: 500; color: var(--bs-secondary-color); }
+.time-sep { width: 1px; height: 2.6rem; background: var(--bs-border-color); }
+.time-badges { display: flex; flex-direction: column; gap: .25rem; align-items: flex-start; }
+@media (max-width: 575.98px) {
+  .time-row { gap: .5rem .6rem; }
+  .time-value { font-size: 1.55rem; }
+  .time-value-sm { font-size: 1.2rem; }
+  .time-label { font-size: .62rem; }
+  .time-sep { height: 2.2rem; }
+}
+
+/* Source health grid: 7 days x 24 hours */
+.health-grid { display: grid; grid-template-columns: repeat(24, 1fr); gap: 2px; }
+.health-grid .cell { height: 12px; border-radius: 2px; background: rgba(42,157,143, calc(.12 + var(--fill, 0) * .88)); }
+.health-grid .cell.unknown { background: var(--bs-tertiary-bg); }
+
+/* Favourites */
+.fav-btn { color: var(--bs-secondary-color); font-size: 1.1rem; line-height: 1; }
+.fav-btn.is-fav { color: #f4b400; }
+.fav-btn:hover { color: #f4b400; }
+
+/* Programme guide strip under the timeline, with marker ticks */
+.guide-strip { position: relative; height: 18px; margin: -4px 0 4px; border-radius: 4px; background: var(--bs-tertiary-bg); overflow: hidden; }
+.guide-strip .prog { position: absolute; top: 0; bottom: 0; padding: 0 .35rem; font-size: .68rem; line-height: 18px; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; color: var(--bs-body-color); background: rgba(26,166,183,.22); border-left: 1px solid rgba(26,166,183,.6); cursor: pointer; }
+.guide-strip .prog:nth-child(even) { background: rgba(26,166,183,.12); }
+.guide-strip .prog.current { background: rgba(26,166,183,.45); font-weight: 600; }
+.marker-ticks { position: absolute; inset: 0; pointer-events: none; }
+.marker-ticks .tick { position: absolute; top: 0; bottom: 0; width: 2px; background: #f4b400; }
+.markers .marker-item { display: flex; align-items: center; gap: .5rem; padding: .35rem .5rem; border-radius: .4rem; }
+.markers .marker-item:hover { background: var(--bs-tertiary-bg); }
+.markers .marker-item .time { font-variant-numeric: tabular-nums; min-width: 5.5rem; }
+.extras-mid .btn.active-feature { background: var(--er-accent); border-color: var(--er-accent); color: #fff; }
+
+/* Spectrum analyser */
+.analyser { display: block; width: 100%; height: 96px; border-radius: .5rem; background: #0b0f1d; }
+@media (max-width: 575.98px) { .analyser { height: 72px; } .player-extras { gap: .4rem; } }
+
+/* Drag to reorder */
+.drag-handle { cursor: grab; font-size: 1.1rem; line-height: 1; touch-action: none; }
+.drag-handle:active { cursor: grabbing; }
+.drag-ghost { opacity: .4; }

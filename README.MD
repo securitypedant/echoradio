@@ -13,14 +13,20 @@ your 7 am.
 
 - **Exact time shift.** Pick the station's timezone and yours. Half-hour zones and daylight-saving
   changes on either side are handled automatically; the shift is recomputed continuously.
-- **Web player with rewind.** Scrub back through the recent buffer, jump to the start of the hour,
-  control playback from your lock screen or headphones, set a sleep timer, install it as an app.
+- **Web player with rewind.** Scrub back through the recent buffer, jump to the start of the show
+  or hour, mark moments to come back to, speed up talk radio, watch a spectrum analyser, send it to
+  AirPlay or a Chromecast, control playback from your lock screen or headphones, set a sleep timer,
+  install it as an app.
+- **Programme guide.** BBC stations get their schedule automatically; other stations can have a
+  weekly schedule typed in. The current show is named in the player, on the cards and in the
+  Icecast stream title.
 - **Plain MP3 streams too.** Every station has a `http://…/listen/<name>` URL for Sonos, car apps,
   VLC and anything else that plays internet radio, plus an HLS URL.
 - **Fallback audio.** While the buffer fills, or if the station goes offline, listeners hear bird
   song, a voice message, silence or the live station instead of dead air.
 - **One container, one port.** nginx, Icecast, liquidsoap and a small Flask app in a single image
-  for amd64 and arm64. Optional admin password, configuration export/import, health check.
+  for amd64 and arm64. Optional admin password, automatic configuration backups, disk guardrails,
+  source health history, health check.
 
 ## Quick start
 
@@ -77,6 +83,14 @@ Settings first.
 | Rewind window | How far back the web player can scrub (1–24 h). |
 | Public address | Optional base URL used for the copyable stream links. |
 
+Settings also shows disk usage with the projected size at the current retention, keeps the last 30
+automatic configuration backups (one is written on every change) with one-click restore, and trims
+recordings automatically if free space drops below 2 GB or 5 % of the volume.
+
+Per stream you can also choose a **recording mode**: the default re-encodes to AAC at the chosen
+quality; "copy" records the source's AAC packets as-is (less CPU, no generation loss, but only for
+AAC sources) and a **programme guide** source (BBC automatic, or a weekly schedule you enter).
+
 Environment variables: `SECRET_KEY` (Flask session key; generated and persisted if unset),
 `PUBLIC_BASE_URL`, `ECHORADIO_MIN_DELAY_SECONDS` (default 120), `ECHORADIO_RELAY_LEAD_SECONDS`
 (default 35, alignment of the MP3 relay), `ECHORADIO_AUTOSTART=0` to not start streams at boot.
@@ -129,6 +143,13 @@ The dev compose file sets `ECHORADIO_MIN_DELAY_SECONDS=120`; pairing a station t
 over to recorded audio within minutes.
 
 ### Publishing a multi-arch image
+
+Pushing a version tag (for example `2.1.0`) runs the GitHub Actions workflow in
+`.github/workflows/docker.yml`, which builds the amd64 and arm64 image, pushes it to Docker Hub as that
+version and `latest`, and creates the GitHub release from the matching `CHANGELOG.md` section. The
+repository needs two secrets: `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` (a Docker Hub access token).
+
+To build by hand instead:
 
 ```sh
 docker buildx build --platform linux/amd64,linux/arm64 -t simonsecuritypedant/echoradio:latest --push .

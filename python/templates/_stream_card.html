@@ -9,6 +9,8 @@
           <h2 class="h5 card-title mb-0 text-truncate" title="{{ s.name }}"><a class="link-body-emphasis text-decoration-none" hx-boost="true" hx-target="body" hx-swap="innerHTML show:window:top" href="{{ url_for('player', stub=s.stub, autoplay=1) }}">{{ s.name }}</a></h2>
           {% if s.description %}<div class="text-body-secondary small text-truncate" title="{{ s.description }}">{{ s.description }}</div>{% endif %}
         </div>
+        <button type="button" class="btn btn-link p-0 fav-btn flex-shrink-0" data-stub="{{ s.stub }}" title="Favourite" aria-label="Favourite"><i class="bi bi-star"></i></button>
+        {% if is_admin %}<span class="drag-handle text-body-secondary flex-shrink-0" title="Drag to reorder"><i class="bi bi-grip-vertical"></i></span>{% endif %}
         <span class="badge rounded-pill status-badge flex-shrink-0">
           {% if s.status == 'recording' %}<i class="bi bi-record-circle-fill me-1 blink"></i>{% elif s.status == 'source_down' %}<i class="bi bi-exclamation-triangle-fill me-1"></i>{% elif s.status == 'starting' %}<i class="bi bi-hourglass-split me-1"></i>{% else %}<i class="bi bi-pause-circle-fill me-1"></i>{% endif %}{{ s.status_text }}
         </span>
@@ -29,9 +31,10 @@
         <div class="small text-body-secondary">Now playing</div>
         <div class="d-flex align-items-baseline gap-2 flex-wrap">
           <span class="fs-5 fw-semibold">{{ s.aired_at }}</span>
-          <span class="small text-body-secondary">station time · {{ s.listener_now }} your time</span>
+          <span class="small text-body-secondary">{{ s.source_city }} time · aired {{ s.delay_text }} ago{% if s.aired_day != 'today' %}, {{ s.aired_day }}{% endif %}</span>
           {% if s.playing_kind == 'fill' %}<span class="badge text-bg-warning-subtle border small" title="Nothing was recorded for this moment; playing {{ s.backup_label|lower }} instead">{{ s.backup_label }}</span>{% endif %}
         </div>
+        {% if s.now_programme and s.now_programme.title %}<div class="small text-truncate" title="{{ s.now_programme.title }}{% if s.now_programme.subtitle %} — {{ s.now_programme.subtitle }}{% endif %}"><i class="bi bi-broadcast me-1 text-body-secondary"></i>{{ s.now_programme.title }}{% if s.now_programme.subtitle %} <span class="text-body-secondary">— {{ s.now_programme.subtitle }}</span>{% endif %}</div>{% endif %}
         {% if s.now_playing_song %}<div class="small text-truncate" title="{{ s.now_playing_song }}"><i class="bi bi-music-note me-1 text-body-secondary"></i>{{ s.now_playing_song }}</div>{% endif %}
       </div>
 

@@ -28,7 +28,8 @@ def log_metadata(m) =
 end
 live_raw.on_metadata(synchronous=false, log_metadata)
 
-enc = %ffmpeg(format="mpegts", %audio(codec="aac", b="$bitrate", ar=44100, channels=2))
+# Recording encoder: AAC re-encode (default) or packet copy of the source ("copy" mode, AAC sources only).
+enc = $record_encoder
 
 def segment_name(m) =
   # Called when a segment is closed: derive its wall-clock start from the duration.

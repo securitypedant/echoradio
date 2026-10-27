@@ -18,7 +18,7 @@ def _public(s: dict) -> dict:
             "source_timezone", "target_timezone", "delay_seconds", "delay_text", "aired_at",
             "aired_at_iso", "listener_now", "source_now", "source_offset", "target_offset",
             "coverage", "hours_recorded", "listeners", "listeners_mp3", "listeners_hls", "backup_track",
-            "backup_label", "bitrate", "mount", "now_playing_song", "artwork_url")
+            "backup_label", "bitrate", "mount", "now_playing_song", "artwork_url", "aired_day", "source_city", "target_city", "now_programme", "recording_mode")
     out = {k: s.get(k) for k in keys}
     out["urls"] = stream_urls(s)
     return out
@@ -99,7 +99,18 @@ def api_test_url():
 def healthz():
     info = supervisor.process_info("icecast")
     ok = info.get("statename") == "RUNNING"
-    return jsonify({"ok": ok, "icecast": info.get("statename", "UNKNOWN")}), (200 if ok else 503)
+    d = state.disk_status()
+    return jsonify({"ok": ok, "icecast": info.get("statename", "UNKNOWN"),
+                    "disk_free": d.get("free"), "disk_low": d.get("low")}), (200 if ok else 503)
+
+
+def api_health(stub: str):
+    from mods import health
+    meta = streams.resolve(stub)
+    if meta is None:
+        abort(404)
+    days = max(1, min(int(request.args.get("days", 7)), 14))
+    return jsonify(health.summary(meta["stub"], days=days))
 
 
 @auth_required
@@ -116,3 +127,55 @@ def api_title(stub: str):
         abort(404)
     return Response(state.now_playing_title(meta) + "\n", mimetype="text/plain",
                     headers={"Cache-Control": "no-store"})
+
+
+# ------------------------------------------------------------------ markers
+def api_markers(stub: str):
+    from mods import markers
+    meta = streams.resolve(stub)
+    if meta is None:
+        abort(404)
+    if request.method == "GET":
+        return jsonify(markers.load(meta["stub"]))
+    data = request.get_json(silent=True) or {}
+    try:
+        aired_at = float(data.get("aired_at"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "aired_at (epoch seconds) required"}), 400
+    item = markers.add(meta["stub"], aired_at, str(data.get("label") or ""))
+    return jsonify(item), 201
+
+
+def api_marker_delete(stub: str, marker_id: str):
+    from mods import markers
+    meta = streams.resolve(stub)
+    if meta is None:
+        abort(404)
+    return jsonify({"ok": markers.remove(meta["stub"], marker_id)})
+
+
+# -------------------------------------------------------------------- guide
+def api_guide(stub: str):
+    from mods import guide
+    meta = streams.resolve(stub)
+    if meta is None:
+        abort(404)
+    try:
+        t_from = float(request.args.get("from"))
+        t_to = float(request.args.get("to"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "from and to (epoch seconds) required"}), 400
+    if t_to <= t_from or t_to - t_from > 3 * 86400:
+        return jsonify({"error": "window must be positive and at most 3 days"}), 400
+    settings = guide.load_settings(meta["stub"])
+    return jsonify({"provider": settings["provider"], "programmes": guide.programmes(meta, t_from, t_to)})
+
+
+@auth_required
+def api_streams_order():
+    data = request.get_json(silent=True) or {}
+    order = [str(x) for x in (data.get("order") or []) if streams.STUB_RE.match(str(x))]
+    n = streams.set_order(order)
+    from mods import backups
+    backups.snapshot("reorder")
+    return jsonify({"ok": True, "ordered": n})

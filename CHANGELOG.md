@@ -1,5 +1,45 @@
 # Changelog
 
+## 2.1.0 — 2026-10-27
+
+### Player
+- **Programme guide** on the timeline: BBC stations get their schedule automatically (BBC Sounds
+  broadcasts feed, detected from the stream URL); any station can have a weekly schedule entered in
+  the stream form. Shows appear as blocks under the timeline (click to jump), the current show is
+  named in the player, on the cards and in the Icecast title, and "Top of hour" becomes
+  "Start of show" (press again for the previous show).
+- **Markers**: "Mark this moment" saves the aired time with the song or show name; markers appear as
+  ticks on the timeline and in a list under the player, and seek on click.
+- **Playback speed** 1×, 1.25×, 1.5×, 2× with pitch preserved; returns to 1× on reaching live.
+- **Spectrum analyser** (Winamp-style bars with peak caps), toggled from the controls. Not available
+  with Safari's built-in HLS player, which does not expose audio data.
+- **AirPlay** (Safari) and **Chromecast** (Chrome, https) buttons.
+- "Top of hour" steps back an hour per press; time row shows labelled station/now clocks; sleep
+  timer button is highlighted while running.
+
+### Home page
+- **Drag to reorder** stream cards (admin); the order is saved for everyone. Favourite star per card.
+- Cards show the current show; the now-playing line reads "19:58 London time · aired 7h ago".
+
+### Recording and operations
+- **Copy recording mode** (opt-in, per stream): record the source's AAC packets without
+  re-encoding. Experimental; AAC sources only.
+- **Source health history**: hourly recording coverage kept for 14 days, shown as a 7-day grid with
+  uptime and gap counts on the details page (`/api/streams/<name>/health`).
+- **Automatic configuration backups** on every change (last 30 kept in the data volume) with
+  one-click restore from Settings.
+- **Disk guardrails**: Settings shows volume usage and projected size; when free space drops below
+  2 GB or 5 %, recordings are trimmed automatically and a warning is shown.
+- **Automated image builds**: a GitHub Actions workflow builds and pushes the multi-arch image and
+  creates the GitHub release when a version tag is pushed (needs `DOCKERHUB_USERNAME` and
+  `DOCKERHUB_TOKEN` repository secrets).
+- Relay stall fixes from 2.0.7 are included.
+
+### Also
+- Stream cards: the now-playing line reads "19:58 London time · aired 7h ago" (with "yesterday" or the date when it differs) instead of two always-identical times.
+- Player: "Top of hour" steps back an hour per press once at the top of an hour, and stops at the start of the buffer.
+- Player: the time line is now one row with labelled values ("London time 07:20:15 PM | Now in Los Angeles 07:57 PM | Rewound 33m"); the sleep-timer button is highlighted while a timer is running.
+
 ## 2.0.7 — 2026-10-27
 
 - Fix relay stalls in production ("Latency is too high: we must catchup N seconds" on

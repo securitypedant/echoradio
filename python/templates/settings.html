@@ -101,8 +101,34 @@
     {% if not first_use %}
     <div class="card shadow-sm mt-3">
       <div class="card-body p-4">
+        <h2 class="h5">Disk</h2>
+        {% set pct = (disk.used / disk.total * 100) if disk.total else 0 %}
+        <div class="progress mb-2" role="progressbar" aria-valuenow="{{ pct|round }}" aria-valuemin="0" aria-valuemax="100" style="height: 10px">
+          <div class="progress-bar {% if disk.low %}bg-danger{% elif pct > 85 %}bg-warning{% else %}bg-success{% endif %}" style="width: {{ pct|round }}%"></div>
+        </div>
+        <div class="small text-body-secondary d-flex flex-wrap gap-3">
+          <span>{{ disk.human(disk.used) }} used of {{ disk.human(disk.total) }} · {{ disk.human(disk.free) }} free</span>
+          <span>Recordings: {{ disk.human(disk.recordings) }} now, about {{ disk.human(disk.projected) }} at {{ config.retention_hours }} h for {{ disk.streams }} stream{{ '' if disk.streams == 1 else 's' }}</span>
+        </div>
+        {% if disk.low %}<div class="alert alert-danger mt-3 mb-0 small">Free space is below the safety margin ({{ disk.human(disk.threshold) }}). Recordings are being trimmed{% if disk.trimmed_hours %} by {{ disk.trimmed_hours }} h{% endif %} to keep the volume usable. Lower the retention or free some space.</div>
+        {% elif disk.projected > disk.free + disk.recordings %}<div class="alert alert-warning mt-3 mb-0 small">At the current retention the recordings will outgrow the volume. Lower the retention or add space.</div>{% endif %}
+      </div>
+    </div>
+
+    <div class="card shadow-sm mt-3">
+      <div class="card-body p-4">
         <h2 class="h5">Backup and restore</h2>
-        <p class="text-body-secondary small">Exports the server settings and stream definitions (not the recordings).</p>
+        <p class="text-body-secondary small">Settings and stream definitions are saved automatically on every change (last {{ 30 }} kept). Recordings are not included.</p>
+        {% if backups %}
+        <div class="list-group list-group-flush mb-3 backup-list">
+          {% for b in backups[:10] %}
+          <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+            <span class="small"><span class="tabular">{{ b.when }}</span> <span class="text-body-secondary">· {{ b.reason }} · {{ (b.size / 1024)|round|int }} KB</span></span>
+            <button type="button" class="btn btn-sm btn-outline-secondary confirm-action" data-action="{{ url_for('settings_restore', name=b.name) }}" data-title="Restore backup" data-body="Restore settings and stream definitions from {{ b.when }} ({{ b.reason }})? Recordings are untouched." data-button="Restore">Restore</button>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
         <div class="d-flex gap-2 flex-wrap">
           <a href="{{ url_for('settings_export') }}" class="btn btn-outline-secondary"><i class="bi bi-download me-1"></i>Export configuration</a>
           <form method="post" action="{{ url_for('settings_import') }}" enctype="multipart/form-data" class="d-inline">

@@ -15,6 +15,11 @@
   {% endif %}
 </div>
 
+{% if disk.low and is_admin %}
+<div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-hdd-fill"></i>
+  <div>Disk space is low: recordings are being trimmed to keep the volume usable. <a href="{{ url_for('settings') }}" class="alert-link">Lower the retention or free space in Settings.</a></div>
+</div>
+{% endif %}
 {% if not streams %}
 <div class="card border-0 shadow-sm empty-state text-center p-5">
   <div class="display-5 mb-3"><i class="bi bi-broadcast"></i></div>
@@ -29,4 +34,53 @@
   {% endfor %}
 </div>
 {% endif %}
+{% endblock %}
+{% block scripts %}
+{% if is_admin %}<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js" defer></script>{% endif %}
+<script>
+  (function () {
+    // Favourites: a per-browser star on the card (no reordering; the card order is set by dragging).
+    const KEY = 'er-favourites';
+    const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { return []; } };
+    const save = (f) => { try { localStorage.setItem(KEY, JSON.stringify(f)); } catch (e) { /* ignore */ } };
+    function apply() {
+      const favs = load();
+      document.querySelectorAll('.fav-btn').forEach((b) => {
+        const on = favs.includes(b.dataset.stub);
+        b.classList.toggle('is-fav', on);
+        b.querySelector('i').className = on ? 'bi bi-star-fill' : 'bi bi-star';
+        b.title = on ? 'Remove from favourites' : 'Add to favourites';
+      });
+    }
+    document.addEventListener('click', (e) => {
+      const b = e.target.closest('.fav-btn');
+      if (!b) return;
+      const favs = load();
+      const i = favs.indexOf(b.dataset.stub);
+      if (i >= 0) favs.splice(i, 1); else favs.push(b.dataset.stub);
+      save(favs); apply();
+    });
+    document.body.addEventListener('htmx:afterSettle', apply);
+    apply();
+
+    // Drag to reorder (admins): persisted server-side so everyone sees the same order.
+    const grid = document.getElementById('stream-grid');
+    function initSortable() {
+      if (!grid || !window.Sortable || grid.dataset.sortable) return;
+      grid.dataset.sortable = '1';
+      new Sortable(grid, {
+        handle: '.drag-handle', animation: 150, ghostClass: 'drag-ghost',
+        onEnd: async () => {
+          const order = Array.from(grid.children).map((c) => c.id.replace('card-', ''));
+          try {
+            const r = await fetch('/api/streams/order', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': document.body.dataset.csrf }, body: JSON.stringify({ order: order }) });
+            if (!r.ok) throw new Error(r.status);
+            showToast('Order saved.', 'success');
+          } catch (e) { showToast('Could not save the order.', 'danger'); }
+        }
+      });
+    }
+    if (window.Sortable) initSortable(); else window.addEventListener('load', initSortable);
+  })();
+</script>
 {% endblock %}

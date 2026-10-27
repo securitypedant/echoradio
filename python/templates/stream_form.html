@@ -110,6 +110,42 @@
               </select>
               <div class="form-text">About <span id="diskEstimate">57</span> MB per hour on disk.</div>
             </div>
+            <div class="col-12">
+              <label for="recording_mode" class="form-label">Recording mode</label>
+              <select class="form-select" id="recording_mode" name="recording_mode">
+                <option value="aac" {% if (stream.recording_mode or 'aac') == 'aac' %}selected{% endif %}>Re-encode to AAC (recommended; works with any source)</option>
+                <option value="copy" {% if stream.recording_mode == 'copy' %}selected{% endif %}>Copy the source audio as-is (experimental; AAC sources only)</option>
+              </select>
+              <div class="form-text">Copy mode skips the encoder, saving CPU and avoiding a generation loss, but only works when the source already sends AAC (most HLS stations). With an MP3 source the stream will not play on Safari or Sonos. The quality setting above is ignored in copy mode.</div>
+            </div>
+          </div>
+
+          <hr class="my-4">
+
+          <h2 class="h6 text-uppercase text-body-secondary">Programme guide <span class="text-body-secondary fw-normal text-lowercase">(optional)</span></h2>
+          <p class="form-text mt-0">Shows what is on in the player and lets you jump to the start of a show.</p>
+          <div class="row g-3">
+            <div class="col-md-5">
+              <label for="guide_provider" class="form-label">Source of the schedule</label>
+              <select class="form-select" id="guide_provider" name="guide_provider">
+                <option value="none" {% if guide.provider == 'none' %}selected{% endif %}>None</option>
+                <option value="bbc" {% if guide.provider == 'bbc' %}selected{% endif %}>BBC Sounds (automatic)</option>
+                <option value="manual" {% if guide.provider == 'manual' %}selected{% endif %}>Weekly schedule I enter</option>
+              </select>
+            </div>
+            <div class="col-md-7 guide-bbc">
+              <label for="bbc_service" class="form-label">BBC service id</label>
+              <input type="text" class="form-control" id="bbc_service" name="bbc_service" value="{{ guide.bbc_service }}" placeholder="auto-detected from the URL, e.g. bbc_radio_two" pattern="bbc_[a-z0-9_]+">
+              <div class="form-text">Leave blank to detect it from the stream URL (works for the BBC list in the directory).</div>
+            </div>
+            <div class="col-12 guide-manual">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="form-label mb-0">Weekly shows <span class="text-body-secondary">(station local time)</span></span>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="addShow"><i class="bi bi-plus-lg"></i> Add show</button>
+              </div>
+              <div id="manualShows" class="d-grid gap-2"></div>
+              <input type="hidden" name="manual_schedule" id="manual_schedule" value="{{ guide.manual|tojson|forceescape }}">
+            </div>
           </div>
 
           <div class="d-flex gap-2 mt-4">
