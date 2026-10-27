@@ -22,6 +22,9 @@
   const fmt = (tz, seconds) => new Intl.DateTimeFormat([], Object.assign({ hour: '2-digit', minute: '2-digit', timeZone: tz }, seconds ? { second: '2-digit' } : {}));
   const fmtSrc = fmt(cfg.sourceTz, false), fmtSrcSec = fmt(cfg.sourceTz, true), fmtTgt = fmt(cfg.targetTz, false);
   const hintDefault = ui.tlHint.textContent;
+  const compactQuery = window.matchMedia('(max-width: 575.98px)');
+  let compact = compactQuery.matches;
+  compactQuery.addEventListener('change', (e) => { compact = e.matches; });
 
   let hls = null;          // hls.js instance (null when using native HLS)
   let native = false;
@@ -110,7 +113,7 @@
     const pc = r.pdtAt(shown);
     ui.tlStart.textContent = ps ? fmtSrc.format(ps) : '—';
     ui.tlEnd.textContent = pl ? fmtSrc.format(pl) : '—';
-    if (pc) ui.aired.textContent = fmtSrcSec.format(pc);
+    if (pc) ui.aired.textContent = (compact ? fmtSrc : fmtSrcSec).format(pc);
     ui.listener.textContent = fmtTgt.format(Date.now());
     const behind = r.live - t;
     if (!started) badge('Ready', 'text-bg-secondary');
@@ -225,7 +228,7 @@
     const names = { 1: 'aborted', 2: 'network error', 3: 'decode error', 4: 'source not supported' };
     const text = err ? (names[err.code] || ('error ' + err.code)) + (err.message ? ': ' + err.message : '') : 'unknown error';
     console.warn('[player] media element error: ' + text);
-    if (native && started) { setStatus('Playback problem (' + text + '), restarting…'); scheduleRestart(); }
+    if (native && started && !(err && err.code === 1)) { setStatus('Playback problem (' + text + '), restarting…'); scheduleRestart(); }
   });
 
   // ---- start-up / hls.js ------------------------------------------------------------
@@ -289,22 +292,61 @@
     }
   }
 
+  function resumeAtPdt(pdt) {
+    // After the native player reloads, seek back to where the listener was (by programme date).
+    if (pdt === null) return;
+    const onMeta = () => {
+      let tries = 0;
+      const attempt = () => {
+        const r = range();
+        if (r && r.pdtAt(r.start) !== null) {
+          const t = r.timeAt(pdt);
+          if (t !== null && t >= r.start && t <= r.live) media.currentTime = t;
+          return;
+        }
+        if (tries++ < 20) setTimeout(attempt, 250);
+      };
+      attempt();
+    };
+    media.addEventListener('loadedmetadata', onMeta, { once: true });
+  }
+
   function scheduleRestart() {
     if (restartTimer) return;
     setStatus('Restarting player…');
+    const r = range();
+    const pdt = r ? r.pdtAt(media.currentTime) : null;
+    const wasRewound = r ? (r.live - media.currentTime) > 20 : false;
     restartTimer = setTimeout(() => {
       restartTimer = null; mediaErrors = 0;
-      if (native) { media.src = playlistUrl; media.load(); } else { initHls(); }
+      if (native) {
+        media.src = playlistUrl; media.load();
+        if (wasRewound) resumeAtPdt(pdt);
+      } else {
+        initHls();
+      }
       if (wantPlaying) play();
     }, 3000);
   }
 
   // Stall watchdog: if we have been buffering for a long time, kick the loader.
+  let nativeNudges = 0;
   every(() => {
-    if (!wantPlaying || !waitingSince || Date.now() - waitingSince < 25000) return;
-    waitingSince = null;
-    if (hls) { hls.stopLoad(); hls.startLoad(); } else { scheduleRestart(); }
+    if (!wantPlaying || !waitingSince) return;
+    const stalled = Date.now() - waitingSince;
+    if (hls) {
+      if (stalled > 25000) { waitingSince = null; hls.stopLoad(); hls.startLoad(); }
+      return;
+    }
+    // Native (Safari): first try a tiny seek to kick the buffer, then a full reload that keeps the position.
+    if (stalled > 15000 && nativeNudges < 2) {
+      nativeNudges += 1; waitingSince = Date.now();
+      try { media.currentTime = media.currentTime + 0.5; media.play(); } catch (e) { /* ignore */ }
+    } else if (stalled > 15000) {
+      waitingSince = null; nativeNudges = 0; scheduleRestart();
+    }
   }, 5000);
+  media.addEventListener('playing', () => { nativeNudges = 0; });
 
   // ---- Media Session (lock screen / headset / keyboard media keys) -------------------
   if ('mediaSession' in navigator) {
@@ -404,9 +446,10 @@
       if (b <= a) continue;
       const el = document.createElement('div');
       el.className = 'prog' + (cur !== null && p.start * 1000 <= cur && cur < p.end * 1000 ? ' current' : '');
+      const widthPct = (b - a) / span * 100;
       el.style.left = ((a - from) / span * 100) + '%';
-      el.style.width = ((b - a) / span * 100) + '%';
-      el.textContent = p.title;
+      el.style.width = widthPct + '%';
+      el.textContent = widthPct >= 4 ? p.title : '';   // too narrow for a label: title tooltip only
       el.title = progLabel(p) + ' · ' + fmtSrc.format(p.start * 1000) + '–' + fmtSrc.format(p.end * 1000);
       el.addEventListener('click', () => { seekTo(r.timeAt(Math.max(p.start * 1000, from))); if (!started) start(); });
       guideStrip.appendChild(el);

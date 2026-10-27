@@ -49,6 +49,8 @@ class Segment:
     start: float
     duration: float
     name: str
+    pos: int = 0
+    resync: bool = False   # timeline re-anchored here (recorder restart or large drift): a real break
 
     @property
     def end(self) -> float:
@@ -164,29 +166,48 @@ class SegmentIndex:
         os.replace(tmp, self._state_path())
 
     # --------------------------------------------------------------- scanning
+    RESYNC_SECONDS = 15.0  # name-time drift beyond this (or a position break) re-anchors the timeline
+
     def scan(self) -> list[Segment]:
-        """Read the segment directory (no caching). Returns completed segments after the base."""
-        found: list[Segment] = []
+        """Read the segment directory (no caching). Returns completed segments after the base.
+
+        Segment names carry the wall-clock time at which liquidsoap closed the file, which jitters
+        by several seconds when the source bursts, while the audio itself is continuous. So within a
+        run of consecutive positions the timeline is rebuilt cumulatively from the exact durations;
+        it is re-anchored to the name time only when the position counter breaks (recorder restart)
+        or the drift grows beyond RESYNC_SECONDS (a real hole).
+        """
+        found: list[tuple[float, int, float, str]] = []
         try:
             with os.scandir(self.hls_dir) as it:
                 for de in it:
                     m = _SEGMENT_RE.match(de.name)
                     if m:
-                        found.append(Segment(start=int(m.group("start")) / 1000.0,
-                                             duration=int(m.group("dur")) / 1000.0, name=de.name))
+                        found.append((int(m.group("start")) / 1000.0, int(m.group("pos")),
+                                      int(m.group("dur")) / 1000.0, de.name))
         except FileNotFoundError:
             return []
-        found.sort(key=lambda s: (s.start, s.name))
+        found.sort()
         base_time = self._base["time"]
         segments: list[Segment] = []
-        last_end = -1.0
-        for seg in found:
-            if seg.start < base_time or seg.duration < 0.2:
+        prev: Segment | None = None
+        for name_start, pos, dur, name in found:
+            if dur < 0.2:
                 continue
-            if seg.start < last_end - 0.5:
-                continue  # overlapping duplicate (e.g. two recorders ran at once): keep the first
-            segments.append(seg)
-            last_end = seg.end
+            resync = False
+            if prev is None:
+                start = name_start
+            else:
+                drift = name_start - prev.end
+                if pos == prev.pos + 1 and abs(drift) < self.RESYNC_SECONDS:
+                    start = prev.end                      # continuous audio: ignore stamp jitter
+                else:
+                    start = max(name_start, prev.end)     # real break: re-anchor, never overlap
+                    resync = True
+            seg = Segment(start=start, duration=dur, name=name, pos=pos, resync=resync)
+            prev = seg
+            if seg.start >= base_time:
+                segments.append(seg)
         return segments
 
     def refresh(self, force: bool = False) -> None:
@@ -294,12 +315,17 @@ class SegmentIndex:
                 t += SEGMENT_SECONDS
 
         t = base["time"]
+        prev_end: float | None = None
         for seg in self.segments:
             if seg.start < t:
                 continue
             fill(t, seg.start)
-            add(seg.start, seg.duration, f"seg/{seg.name}", "rec", prev_kind == "fill")
+            # Any timing break between recorded segments (a hole too short to fill, or an overlap) must
+            # be signalled: the segments' internal timestamps no longer match the playlist timeline and
+            # hls.js would otherwise jump over the mismatch.
+            add(seg.start, seg.duration, f"seg/{seg.name}", "rec", prev_kind == "fill" or (prev_kind == "rec" and seg.resync))
             prev_kind, prev_fill_idx, prev_live = "rec", None, None
+            prev_end = seg.end
             t = seg.end
         if until > t:
             fill(t, until)

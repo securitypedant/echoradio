@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.1.1 — 2026-10-27
+
+- Rewinding on desktop no longer jumps: segment timestamps jitter by a few seconds when the source bursts, which the playlist used to pass on as timing breaks; the timeline is now rebuilt from the exact segment durations and only re-anchored on a real break (recorder restart or a hole).
+- Guide strip: very short items (a two-minute news bulletin) no longer show a stray first letter.
+- A stream whose station and listener zones share an offset now plays near-live (two minutes behind, with the full rewind buffer) instead of a day late, so its card no longer shows "No recording · live station" while it is recording.
+- Player on phones: the time row wraps (two clocks side by side, badges below) and the station clock drops seconds, so nothing overlaps.
+- Safari/iOS: stall recovery first nudges the buffer and, if it must reload, resumes at the rewound position instead of jumping to the live point.
+
 ## 2.1.0 — 2026-10-27
 
 ### Player

@@ -49,9 +49,12 @@ def test_station_behind_listener_wraps_to_previous_day():
     assert now - instant == timedelta(hours=16)
 
 
-def test_same_timezone_replays_yesterday():
+def test_same_offset_plays_near_live():
     now = datetime(2026, 6, 1, 8, 30, tzinfo=UTC)
-    assert delay.delay(now, "Europe/London", "Europe/London", MIN) == timedelta(hours=24)
+    # Same zone, or different zones at the same offset: nothing to shift, so only the recording lag.
+    assert delay.delay(now, "Europe/London", "Europe/London", MIN) == MIN
+    assert delay.delay(now, "Europe/Dublin", "Europe/London", MIN) == MIN
+    assert delay.delay(now, "America/Los_Angeles", "America/Los_Angeles", MIN) == MIN
 
 
 def test_min_delay_pushes_back_a_day():

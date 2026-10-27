@@ -238,3 +238,14 @@ body { background: var(--er-bg); min-height: 100vh; }
   100%      { transform: translateX(0); }
 }
 @media (prefers-reduced-motion: reduce) { .mq-line.marquee .mq { animation: none; } }
+
+/* Phone layout for the time row: two clocks side by side, badges on their own line below */
+@media (max-width: 575.98px) {
+  .time-row { flex-wrap: wrap; gap: .35rem .75rem; }
+  .time-cell { flex: 1 1 40%; }
+  .time-sep { height: 2rem; }
+  .time-value { font-size: 1.5rem; }
+  .time-value-sm { font-size: 1.25rem; }
+  .time-badges { flex-basis: 100%; flex-direction: row; justify-content: center; flex-wrap: wrap; gap: .35rem; margin-top: .15rem; }
+  .player-head h1 { font-size: 1.15rem; }
+}
