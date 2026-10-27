@@ -176,3 +176,17 @@ def test_live_backup_maps_gaps_to_shifted_recording(tmp_path):
     # Stable across a second build.
     again = idx.entries_between("live", start - 600, start, live_shift=shift)
     assert [(e.seq, e.path) for e in again] == [(e.seq, e.path) for e in entries]
+
+
+def test_live_backup_uses_silence_for_short_holes(tmp_path):
+    start = ORIGIN + 3600
+    # 30 s hole (short) and a 10 min hole (long) inside the recording.
+    segs = continuous(start, 30) + continuous(start + 300 + 30, 30) + continuous(start + 600 + 30 + 600, 300)
+    sdir = make_stream(tmp_path, segs)
+    idx = hls.SegmentIndex(sdir, ORIGIN)
+    # Live content for hole time t is the recording at t + shift (here 20 min later, which exists).
+    entries = idx.entries_between("live", start, start + 2000, live_shift=1200.0)
+    short_hole = [e for e in entries if start + 300 <= e.start < start + 330]
+    long_hole = [e for e in entries if start + 630 <= e.start < start + 1230]
+    assert short_hole and all(e.kind == "fill" and e.path.startswith("fallback/silence/") for e in short_hole)
+    assert long_hole and all(e.kind == "fill" and e.path.startswith("seg/") for e in long_hole)

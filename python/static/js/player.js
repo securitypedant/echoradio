@@ -110,10 +110,8 @@
     const pc = r.pdtAt(shown);
     ui.tlStart.textContent = ps ? fmtSrc.format(ps) : '—';
     ui.tlEnd.textContent = pl ? fmtSrc.format(pl) : '—';
-    if (pc) {
-      ui.aired.textContent = fmtSrcSec.format(pc);
-      if (pl) ui.listener.textContent = fmtTgt.format(Date.now() - (pl - pc));
-    }
+    if (pc) ui.aired.textContent = fmtSrcSec.format(pc);
+    ui.listener.textContent = fmtTgt.format(Date.now());
     const behind = r.live - t;
     if (!started) badge('Ready', 'text-bg-secondary');
     else if (behind < 20) badge('Live', 'is-live');
@@ -247,7 +245,8 @@
     details = null;
     hls = new Hls({
       liveSyncDuration: cfg.leadSeconds,
-      liveMaxLatencyDuration: cfg.leadSeconds + 90,
+      // No liveMaxLatencyDuration: this is a DVR, rewinding must never be "caught up" to live.
+      liveDurationInfinity: false,
       maxBufferLength: 60,
       backBufferLength: 600,
       enableWorker: true,

@@ -28,7 +28,7 @@
             <span class="badge rounded-pill text-bg-secondary" id="liveBadge">Connecting…</span>
             <span class="badge rounded-pill text-bg-warning-subtle border d-none" id="fillBadge">{{ s.backup_label }}</span>
           </div>
-          <div class="small text-body-secondary" id="airedLabel">station time · <span id="listenerClock">{{ s.listener_now }}</span> your time</div>
+          <div class="small text-body-secondary" id="airedLabel">station time · now <span id="listenerClock">{{ s.listener_now }}</span> your time</div>
           <div class="song-line text-truncate {% if not s.now_playing_song %}d-none{% endif %}" id="songLine"><i class="bi bi-music-note me-1 text-body-secondary"></i><span id="songText">{{ s.now_playing_song or '' }}</span></div>
         </div>
 

@@ -10,7 +10,10 @@ settings.log.file := false
 settings.log.stdout := true
 settings.log.level := 3
 
-live = input.http(id="live", user_agent="$user_agent", new_track_on_metadata=false, "$stream_input")
+# The recorder runs on the steady CPU clock (self_sync=false) with a generous buffer so that
+# stalls and bursts from flaky HLS/Icecast sources are absorbed instead of cut out of the recording.
+live = input.http(id="live", user_agent="$user_agent", new_track_on_metadata=false,
+                  self_sync=false, max_buffer=30., timeout=20., "$stream_input")
 
 # Record in-band song metadata (ICY StreamTitle etc.) with a timestamp so it can be replayed
 # time-shifted by the web app. One tab-separated line per change: epoch, artist, title.

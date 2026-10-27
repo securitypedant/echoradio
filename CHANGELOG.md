@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.0.6 — 2026-10-26
+
+- Recorder runs on the steady CPU clock with a 30 s input buffer, so stalls and bursts from flaky
+  HLS/Icecast sources no longer leave holes in the recording (previously dozens per hour on the
+  BBC relay, each one a jump during playback).
+- The "live stream" backup only covers holes of two minutes or more; shorter holes get silence
+  instead of a jarring jump to live audio.
+- Player: rewinding no longer snaps back to the live point after a couple of minutes; the second
+  clock shows your current time so the station/you difference is visible while rewound.
+
 ## 2.0.5 — 2026-10-26
 
 - URL test reports redirects and warns when the target is a geo-restriction message or a fixed-length file rather than a live stream.

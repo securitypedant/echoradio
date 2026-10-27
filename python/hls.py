@@ -34,6 +34,7 @@ from typing import Iterable
 
 SEGMENT_SECONDS = 10.0
 GAP_MIN_SECONDS = 5.0          # a hole shorter than this is left as a PDT jump, not filled
+LIVE_MIN_GAP_SECONDS = 120.0   # "live stream" backup only covers holes at least this long; shorter get silence
 TARGET_DURATION = 11           # EXT-X-TARGETDURATION (integer, >= every declared duration)
 FALLBACK_KINDS = ("birdsong", "voice", "silence", "live")
 
@@ -266,9 +267,13 @@ class SegmentIndex:
             nonlocal prev_kind, prev_fill_idx, prev_live
             if fillers is None and not live_mode:
                 return
+            # Short holes inside a recording get silence; jumping to live audio for a few seconds
+            # is far more jarring than a brief pause. Long holes (buffer not filled yet, outages)
+            # use the live station.
+            use_live = live_mode and (b - a) >= LIVE_MIN_GAP_SECONDS
             t = self._grid_after(a)
             while t < b - GAP_MIN_SECONDS:
-                if live_mode:
+                if use_live:
                     seg = live_segment_at(t)
                     if seg is not None:
                         continuous = prev_kind == "fill" and prev_live is not None and abs(seg.start - prev_live.end) < 0.5
