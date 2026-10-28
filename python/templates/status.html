@@ -25,6 +25,21 @@
 </div>
 
 <div class="card shadow-sm mt-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-baseline flex-wrap gap-2">
+      <h2 class="h6 mb-0"><i class="bi bi-heart-pulse me-2"></i>Source health, last 7 days</h2>
+      <span class="small text-body-secondary">
+        {% if health.uptime is not none %}{{ (health.uptime * 100)|round(1) }}% recorded over {{ health.hours_known }} h · {{ health.gaps }} gap{{ '' if health.gaps == 1 else 's' }}{% else %}No completed hours yet{% endif %}
+      </span>
+    </div>
+    <div class="health-grid mt-2" title="One cell per hour, oldest first; brightness = share of the hour recorded">
+      {% for h in health.hours %}<span class="cell {% if h.c is none %}unknown{% endif %}" style="--fill: {{ h.c if h.c is not none else 0 }}" title="{{ h.t|int }}"></span>{% endfor %}
+    </div>
+    <div class="d-flex justify-content-between small text-body-secondary mt-1"><span>7 days ago</span><span>now</span></div>
+  </div>
+</div>
+
+<div class="card shadow-sm mt-3">
   <div class="card-header d-flex justify-content-between align-items-center">
     <span><i class="bi bi-terminal me-2"></i>Liquidsoap log</span>
     <span class="small text-body-secondary">refreshes every 5 s · <a href="{{ url_for('logs_page', file='stream-' ~ s.stub ~ '.log') }}">open in log viewer</a></span>
@@ -38,6 +53,12 @@
 {% endblock %}
 {% block scripts %}
 <script>
+  document.querySelectorAll('.health-grid .cell').forEach((c) => {
+    const t = parseInt(c.getAttribute('title'), 10) * 1000;
+    const d = new Date(t);
+    const fill = parseFloat(c.style.getPropertyValue('--fill')) || 0;
+    c.title = d.toLocaleString([], { weekday: 'short', hour: '2-digit' }) + (c.classList.contains('unknown') ? ' · not recorded yet' : ' · ' + Math.round(fill * 100) + '% recorded');
+  });
   document.body.addEventListener('htmx:afterSwap', (e) => {
     if (e.detail.target && e.detail.target.id === 'log') { e.detail.target.scrollTop = e.detail.target.scrollHeight; }
   });

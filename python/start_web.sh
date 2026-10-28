@@ -6,4 +6,4 @@ if [ "${FLASK_ENV:-production}" = "development" ]; then
     export FLASK_DEBUG=1
     exec python app.py
 fi
-exec gunicorn --workers 1 --threads 8 --bind 127.0.0.1:5000 --timeout 120 --access-logfile - app:app
+exec gunicorn --workers 1 --threads 8 --bind 127.0.0.1:5000 --timeout 120 --keep-alive 75 --access-logfile - app:app

@@ -6,7 +6,7 @@
   const urlTemplate = viewer.dataset.logUrl;
   const fileSel = $('logFile'), search = $('logSearch'), regexBtn = $('logRegex'), linesSel = $('logLines');
   const output = $('logOutput'), stats = $('logStats'), follow = $('logFollow'), wrap = $('logWrap'), errorsOnly = $('logErrors');
-  const refreshBtn = $('logRefresh'), download = $('logDownload');
+  const refreshBtn = $('logRefresh'), download = $('logDownload'), copyBtn = $('logCopy');
   const ERROR_RE = /\b(error|warn|warning|crit|critical|fatal|exception|traceback|failed|refused)\b/i;
 
   let lines = [];
@@ -28,6 +28,17 @@
     } catch (e) {
       return null;
     }
+  }
+
+  // The lines currently shown, i.e. after the search and errors-only filters.
+  function visibleLines() {
+    const re = matcher();
+    const onlyErrors = errorsOnly.checked;
+    return lines.filter((line) => {
+      if (onlyErrors && !ERROR_RE.test(line)) return false;
+      if (re) { re.lastIndex = 0; if (!re.test(line)) return false; }
+      return true;
+    });
   }
 
   function render() {
@@ -94,6 +105,21 @@
   });
   linesSel.addEventListener('change', load);
   refreshBtn.addEventListener('click', load);
+  copyBtn.addEventListener('click', () => {
+    const shown = visibleLines();
+    if (!shown.length) { showToast('Nothing to copy.', 'warning'); return; }
+    const filtered = search.value.trim() || errorsOnly.checked;
+    const text = '# ' + fileSel.value + (filtered ? ' (filtered: ' + (search.value.trim() ? '"' + search.value.trim() + '"' : '') + (errorsOnly.checked ? ' errors only' : '') + ')' : '') +
+      ' · ' + shown.length + ' of ' + lines.length + ' lines · copied ' + new Date().toISOString() + '\n' + shown.join('\n') + '\n';
+    const done = () => showToast('Copied ' + shown.length.toLocaleString() + ' line' + (shown.length === 1 ? '' : 's') + '.', 'success');
+    const fallback = () => {
+      const ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      try { document.execCommand('copy'); done(); } catch (e) { showToast('Could not copy to the clipboard.', 'danger'); }
+      document.body.removeChild(ta);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+  });
   follow.addEventListener('change', schedule);
   wrap.addEventListener('change', () => output.classList.toggle('log-wrap', wrap.checked));
   errorsOnly.addEventListener('change', render);
@@ -102,6 +128,10 @@
   search.addEventListener('input', () => { clearTimeout(debounce); debounce = setTimeout(render, 120); });
 
   output.classList.toggle('log-wrap', wrap.checked);
+  try {
+    const q = new URL(window.location.href).searchParams.get('q');
+    if (q) search.value = q;
+  } catch (e) { /* ignore */ }
   load();
   schedule();
 })();

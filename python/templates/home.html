@@ -15,6 +15,11 @@
   {% endif %}
 </div>
 
+{% if disk.low and is_admin %}
+<div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-hdd-fill"></i>
+  <div>Disk space is low: recordings are being trimmed to keep the volume usable. <a href="{{ url_for('settings') }}" class="alert-link">Lower the retention or free space in Settings.</a></div>
+</div>
+{% endif %}
 {% if not streams %}
 <div class="card border-0 shadow-sm empty-state text-center p-5">
   <div class="display-5 mb-3"><i class="bi bi-broadcast"></i></div>
@@ -29,4 +34,29 @@
   {% endfor %}
 </div>
 {% endif %}
+{% endblock %}
+{% block scripts %}
+{% if is_admin %}<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js" defer></script>{% endif %}
+<script>
+  (function () {
+    // Drag to reorder (admins): persisted server-side so everyone sees the same order.
+    const grid = document.getElementById('stream-grid');
+    function initSortable() {
+      if (!grid || !window.Sortable || grid.dataset.sortable) return;
+      grid.dataset.sortable = '1';
+      new Sortable(grid, {
+        handle: '.drag-handle', animation: 150, ghostClass: 'drag-ghost',
+        onEnd: async () => {
+          const order = Array.from(grid.children).map((c) => c.id.replace('card-', ''));
+          try {
+            const r = await fetch('/api/streams/order', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': document.body.dataset.csrf }, body: JSON.stringify({ order: order }) });
+            if (!r.ok) throw new Error(r.status);
+            showToast('Order saved.', 'success');
+          } catch (e) { showToast('Could not save the order.', 'danger'); }
+        }
+      });
+    }
+    if (window.Sortable) initSortable(); else window.addEventListener('load', initSortable);
+  })();
+</script>
 {% endblock %}

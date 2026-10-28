@@ -110,6 +110,42 @@
               </select>
               <div class="form-text">About <span id="diskEstimate">57</span> MB per hour on disk.</div>
             </div>
+            <div class="col-12">
+              <label for="recording_mode" class="form-label">Recording mode</label>
+              <select class="form-select" id="recording_mode" name="recording_mode">
+                <option value="aac" {% if (stream.recording_mode or 'aac') == 'aac' %}selected{% endif %}>Re-encode to AAC (recommended; works with any source)</option>
+                <option value="copy" {% if stream.recording_mode == 'copy' %}selected{% endif %}>Copy the source audio as-is (experimental; AAC sources only)</option>
+              </select>
+              <div class="form-text">Copy mode skips the encoder, saving CPU and avoiding a generation loss, but only works when the source already sends AAC (most HLS stations). With an MP3 source the stream will not play on Safari or Sonos. The quality setting above is ignored in copy mode.</div>
+            </div>
+          </div>
+
+          <hr class="my-4">
+
+          <h2 class="h6 text-uppercase text-body-secondary">Programme guide <span class="text-body-secondary fw-normal text-lowercase">(optional)</span></h2>
+          <p class="form-text mt-0">Shows what is on in the player and lets you jump to the start of a show.</p>
+          <div class="row g-3">
+            <div class="col-md-5">
+              <label for="guide_provider" class="form-label">Source of the schedule</label>
+              <input type="hidden" name="guide_auto" value="1">
+              <select class="form-select" id="guide_provider" name="guide_provider">
+                {% for key, label in guide_providers.items() %}<option value="{{ key }}" {% if guide.provider == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+              </select>
+              <div class="form-text">Leave on “None” and the right source is picked from the stream URL when one is known.</div>
+            </div>
+            <div class="col-md-7 guide-service" data-help='{{ guide_help|tojson|forceescape }}'>
+              <label for="guide_service" class="form-label" id="guide_service_label">Station id</label>
+              <input type="text" class="form-control" id="guide_service" name="guide_service" value="{{ guide.service }}" placeholder="detected from the stream URL when possible">
+              <div class="form-text" id="guide_service_help">Leave blank to detect it from the stream URL.</div>
+            </div>
+            <div class="col-12 guide-manual">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="form-label mb-0">Weekly shows <span class="text-body-secondary">(station local time)</span></span>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="addShow"><i class="bi bi-plus-lg"></i> Add show</button>
+              </div>
+              <div id="manualShows" class="d-grid gap-2"></div>
+              <input type="hidden" name="manual_schedule" id="manual_schedule" value="{{ guide.manual|tojson|forceescape }}">
+            </div>
           </div>
 
           <div class="d-flex gap-2 mt-4">

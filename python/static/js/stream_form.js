@@ -161,3 +161,82 @@
   input.addEventListener('input', sync);
   img.addEventListener('error', () => img.classList.add('d-none'));
 })();
+
+/* Programme guide settings: provider toggling and the weekly schedule editor */
+(function () {
+  'use strict';
+  const provider = document.getElementById('guide_provider');
+  if (!provider) return;
+  const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const list = document.getElementById('manualShows');
+  const hidden = document.getElementById('manual_schedule');
+  let shows = [];
+  try { shows = JSON.parse(hidden.value || '[]'); } catch (e) { shows = []; }
+
+  const serviceBox = document.querySelector('.guide-service');
+  let help = {};
+  try { help = JSON.parse(serviceBox.dataset.help || '{}'); } catch (e) { help = {}; }
+  function sync() {
+    const v = provider.value;
+    const h = help[v];
+    serviceBox.classList.toggle('d-none', !h);
+    if (h) {
+      document.getElementById('guide_service_label').textContent = h[0];
+      document.getElementById('guide_service').placeholder = h[1];
+      document.getElementById('guide_service_help').textContent = 'Leave blank to detect it from the stream URL where possible. ' + h[1];
+    }
+    document.querySelectorAll('.guide-manual').forEach((el) => el.classList.toggle('d-none', v !== 'manual'));
+  }
+  function serialize() { hidden.value = JSON.stringify(shows); }
+  function render() {
+    list.innerHTML = '';
+    if (!shows.length) {
+      list.innerHTML = '<div class="form-text">No shows yet. Add the ones you care about, e.g. “Breakfast” 06:30–09:30 on weekdays.</div>';
+    }
+    shows.forEach((show, idx) => {
+      const row = document.createElement('div');
+      row.className = 'show-row border rounded p-2';
+      row.innerHTML =
+        '<div class="d-flex flex-wrap gap-2 align-items-center">' +
+        '<input type="text" class="form-control form-control-sm show-title" placeholder="Show title" style="flex: 2 1 160px">' +
+        '<input type="text" class="form-control form-control-sm show-subtitle" placeholder="Presenter (optional)" style="flex: 2 1 140px">' +
+        '<input type="time" class="form-control form-control-sm show-start" style="flex: 0 0 110px">' +
+        '<span class="text-body-secondary">to</span>' +
+        '<input type="time" class="form-control form-control-sm show-end" style="flex: 0 0 110px">' +
+        '<button type="button" class="btn btn-sm btn-outline-danger show-remove" title="Remove"><i class="bi bi-x-lg"></i></button>' +
+        '</div><div class="d-flex flex-wrap gap-1 mt-2 show-days"></div>';
+      row.querySelector('.show-title').value = show.title || '';
+      row.querySelector('.show-subtitle').value = show.subtitle || '';
+      row.querySelector('.show-start').value = show.start || '';
+      row.querySelector('.show-end').value = show.end || '';
+      const daysEl = row.querySelector('.show-days');
+      DAYS.forEach((name, d) => {
+        const id = 'show' + idx + 'day' + d;
+        const on = (show.days || []).includes(d);
+        daysEl.insertAdjacentHTML('beforeend',
+          '<input type="checkbox" class="btn-check" id="' + id + '" data-day="' + d + '"' + (on ? ' checked' : '') + '>' +
+          '<label class="btn btn-sm btn-outline-secondary" for="' + id + '">' + name + '</label>');
+      });
+      const update = () => {
+        show.title = row.querySelector('.show-title').value;
+        show.subtitle = row.querySelector('.show-subtitle').value;
+        show.start = row.querySelector('.show-start').value;
+        show.end = row.querySelector('.show-end').value;
+        show.days = Array.from(daysEl.querySelectorAll('input:checked')).map((i) => parseInt(i.dataset.day, 10));
+        serialize();
+      };
+      row.querySelectorAll('input').forEach((i) => i.addEventListener('input', update));
+      row.querySelectorAll('input').forEach((i) => i.addEventListener('change', update));
+      row.querySelector('.show-remove').addEventListener('click', () => { shows.splice(idx, 1); serialize(); render(); });
+      list.appendChild(row);
+    });
+  }
+  document.getElementById('addShow').addEventListener('click', () => {
+    shows.push({ title: '', subtitle: '', start: '06:00', end: '09:00', days: [0, 1, 2, 3, 4] });
+    serialize(); render();
+    const last = list.querySelector('.show-row:last-child .show-title');
+    if (last) last.focus();
+  });
+  provider.addEventListener('change', sync);
+  sync(); render();
+})();

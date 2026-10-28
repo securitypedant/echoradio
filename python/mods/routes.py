@@ -33,6 +33,7 @@ def register_routes(app) -> None:
     add("/settings", "settings", views.settings, methods=["GET", "POST"])
     add("/settings/export", "settings_export", views.settings_export)
     add("/settings/import", "settings_import", views.settings_import, methods=["POST"])
+    add("/settings/backups/<name>/restore", "settings_restore", views.settings_restore, methods=["POST"])
     add("/logs", "logs_page", views.logs_page)
     add("/logs/<name>", "server_log", views.server_log)
 
@@ -45,8 +46,15 @@ def register_routes(app) -> None:
 
     # JSON API
     add("/api/streams", "api_streams", api.api_streams)
+    add("/api/streams/order", "api_streams_order", api.api_streams_order, methods=["POST"])
     add("/api/streams/<stub>", "api_stream", api.api_stream)
     add("/api/streams/<stub>/title", "api_title", api.api_title)
+    add("/api/streams/<stub>/health", "api_health", api.api_health)
+    add("/api/streams/<stub>/markers", "api_markers", api.api_markers, methods=["GET", "POST"])
+    add("/api/streams/<stub>/markers/<marker_id>", "api_marker_delete", api.api_marker_delete, methods=["DELETE"])
+    add("/api/streams/<stub>/guide", "api_guide", api.api_guide)
+    add("/api/streams/<stub>/client-log", "api_client_log", api.api_client_log, methods=["POST"])
+    add("/api/streams/<stub>/player-log", "api_player_log", api.api_player_log)
     add("/api/delay", "api_delay", api.api_delay)
     add("/api/test-url", "api_test_url", api.api_test_url, methods=["POST"])
     add("/api/directory", "api_directory", api.api_directory)

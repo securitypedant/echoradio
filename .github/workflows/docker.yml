@@ -1,0 +1,64 @@
+# Builds the multi-arch image and pushes it to Docker Hub whenever a version tag (e.g. 2.1.0) is pushed,
+# then creates the GitHub release from the matching CHANGELOG section.
+#
+# Required repository secrets: DOCKERHUB_USERNAME, DOCKERHUB_TOKEN (a Docker Hub access token).
+name: Build and publish image
+
+on:
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Image tags
+        id: meta
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+          else
+            VERSION="dev-$(git rev-parse --short HEAD)"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          TAGS="simonsecuritypedant/echoradio:${VERSION}"
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then TAGS="${TAGS},simonsecuritypedant/echoradio:latest"; fi
+          echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Release notes from CHANGELOG
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          V="${{ steps.meta.outputs.version }}"
+          awk -v v="$V" '$0 ~ "^## "v {p=1; next} /^## /{if(p) exit} p' CHANGELOG.md > notes.md
+          printf '\nDocker image: `simonsecuritypedant/echoradio:%s` (linux/amd64, linux/arm64).\n' "$V" >> notes.md
+          cat notes.md
+
+      - uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          name: EchoRadio ${{ steps.meta.outputs.version }}
+          body_path: notes.md

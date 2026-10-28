@@ -1,7 +1,9 @@
 """HTML pages and form handlers."""
 from __future__ import annotations
 
+import json
 import os
+import re
 import shutil
 import time
 from collections import deque
@@ -10,9 +12,9 @@ from zoneinfo import available_timezones
 from flask import (Response, abort, current_app, flash, redirect, render_template, request, send_file,
                    session, url_for)
 
-from mods import icecast, state, streams, supervisor
+from mods import backups, disk, guide, health, icecast, state, streams, supervisor
 from mods.auth import auth_required, hash_password, is_admin
-from mods.config import Config, load_server_config, save_server_config
+from mods.config import Config, load_server_config, save_server_config, SERVER_DEFAULTS, TUNABLE_BOUNDS, LIQUIDSOAP_TUNABLES, clamp_tunable
 from mods.logger import logger
 from mods.utils import export_config_zip, grouped_timezones, import_config_zip, stream_urls
 
@@ -50,7 +52,7 @@ def _wants_fragment() -> bool:
 # ------------------------------------------------------------------- pages
 def home():
     states = state.all_states()
-    return render_template("home.html", streams=states,
+    return render_template("home.html", streams=states, disk=state.disk_status(),
                            urls={s["stub"]: stream_urls(s) for s in states},
                            max_streams=int(current_app.config.get("ICECAST_MAX_SOURCES") or 5))
 
@@ -76,7 +78,8 @@ def stream_detail(stub: str):
     meta = _meta_or_404(stub)
     s = state.stream_state(meta)
     return render_template("status.html", s=s, urls=stream_urls(meta),
-                           retention_hours=current_app.config.get("RETENTION_HOURS", 30))
+                           retention_hours=current_app.config.get("RETENTION_HOURS", 30),
+                           health=health.summary(meta["stub"], days=7))
 
 
 @auth_required
@@ -117,6 +120,11 @@ def _log_catalog() -> list[dict]:
         path = os.path.join(streams.stream_dir(meta["stub"]), "liquidsoap.log")
         items.append({"id": f"stream-{meta['stub']}.log", "label": f"{meta['name']} (liquidsoap)",
                       "group": "Streams", "path": path})
+    for name, label in (("player.log", "Player sessions (playlists + uploaded client logs)"),
+                        ("segments.log", "Segment downloads (nginx)")):
+        path = os.path.join(Config.LOGS_ROOT, name)
+        if os.path.exists(path) or current_app.config.get("PLAYER_DEBUG"):
+            items.append({"id": name, "label": label, "group": "Player diagnostics", "path": path})
     return items
 
 
@@ -152,6 +160,7 @@ def _parse_stream_form(form, exclude_stub: str | None = None) -> tuple[dict, lis
     name = (form.get("stream_name") or "").strip()[:80]
     mount = (form.get("stream_mount") or "").strip().lower()
     artwork = (form.get("artwork_url") or "").strip()[:500]
+    recording_mode = form.get("recording_mode") or "aac"
     url = (form.get("stream_url") or "").strip()
     description = (form.get("stream_description") or "").strip()[:200]
     source_tz = form.get("source_tz") or ""
@@ -178,16 +187,47 @@ def _parse_stream_form(form, exclude_stub: str | None = None) -> tuple[dict, lis
             errors.append(f"The URL name “{mount}” is already used by another stream.")
     if artwork and not artwork.lower().startswith(("http://", "https://")):
         errors.append("Artwork must be an http(s) image URL.")
+    if recording_mode not in ("aac", "copy"):
+        errors.append("Unknown recording mode.")
     fields = {"name": name, "url": url, "description": description, "source_timezone": source_tz,
-              "target_timezone": target_tz, "backup_track": backup, "bitrate": bitrate, "artwork_url": artwork}
+              "target_timezone": target_tz, "backup_track": backup, "bitrate": bitrate, "artwork_url": artwork,
+              "recording_mode": recording_mode}
     if mount:
         fields["mount"] = mount
     return (fields, errors)
 
 
+def _parse_guide_form(form, stream_url: str) -> dict:
+    provider = form.get("guide_provider") or "none"
+    if provider not in guide.PROVIDERS:
+        provider = "none"
+    if provider == "none" and form.get("guide_auto") == "1":
+        provider = guide.guess_provider(stream_url)
+    service = (form.get("guide_service") or "").strip()
+    if provider in guide.DAY_FETCHERS:
+        if not service:
+            service = guide.guess_service(provider, stream_url)
+        if service and not guide.valid_service(provider, service):
+            service = ""
+    else:
+        service = ""
+    manual = []
+    try:
+        for e in json.loads(form.get("manual_schedule") or "[]")[:60]:
+            days = sorted({int(d) for d in e.get("days", []) if 0 <= int(d) <= 6})
+            start, end = str(e.get("start", ""))[:5], str(e.get("end", ""))[:5]
+            if days and re.match(r"^\d{2}:\d{2}$", start) and re.match(r"^\d{2}:\d{2}$", end) and e.get("title"):
+                manual.append({"days": days, "start": start, "end": end, "title": str(e["title"])[:120],
+                               "subtitle": str(e.get("subtitle") or "")[:120]})
+    except (ValueError, TypeError, AttributeError):
+        manual = []
+    return {"provider": provider, "service": service, "manual": manual}
+
+
 def _form_context(**extra) -> dict:
     ctx = {"timezones": grouped_timezones(), "backup_kinds": streams.BACKUP_KINDS,
-           "bitrates": streams.BITRATES}
+           "bitrates": streams.BITRATES, "guide": {"provider": "none", "service": "", "manual": []},
+           "guide_providers": guide.PROVIDER_LABELS, "guide_help": guide.SERVICE_HELP}
     ctx.update(extra)
     return ctx
 
@@ -202,7 +242,8 @@ def stream_new():
         if errors:
             for e in errors:
                 flash(e, "danger")
-            return render_template("stream_form.html", **_form_context(stream=fields, mode="new"))
+            return render_template("stream_form.html", **_form_context(stream=fields, mode="new",
+                                                                          guide=_parse_guide_form(request.form, fields["url"])))
         stub = streams.unique_stub(fields["name"])
         fields.setdefault("mount", stub)
         if fields["mount"] != stub and streams.mount_taken(fields["mount"]):
@@ -211,7 +252,9 @@ def stream_new():
         meta = {**fields, "stub": stub, "status": "STOPPED", "created_at": time.time()}
         logger.info("Creating stream %s (%s)", fields["name"], stub)
         meta = streams.materialize(meta, current_app.config["SERVER_CONFIG"], log=logger.info)
+        guide.save_settings(stub, _parse_guide_form(request.form, fields["url"]))
         supervisor.reread_update()
+        backups.snapshot(f"add-{stub}")
         res = supervisor.control("start", stub)
         if res["status"] == "success":
             streams.update_metadata(stub, status="RUNNING")
@@ -232,7 +275,8 @@ def stream_edit(stub: str):
         if errors:
             for e in errors:
                 flash(e, "danger")
-            return render_template("stream_form.html", **_form_context(stream={**meta, **fields}, mode="edit"))
+            return render_template("stream_form.html", **_form_context(stream={**meta, **fields}, mode="edit",
+                                                                          guide=_parse_guide_form(request.form, fields["url"])))
         was_running = supervisor.process_info(stub).get("statename") == "RUNNING"
         if was_running:
             supervisor.control("stop", stub)
@@ -242,18 +286,21 @@ def stream_edit(stub: str):
             streams.rebuild_fallback_sets(meta, log=logger.info)
         logger.info("Updating stream %s", stub)
         meta = streams.materialize(meta, current_app.config["SERVER_CONFIG"], log=logger.info)
+        guide.save_settings(stub, _parse_guide_form(request.form, fields["url"]))
         supervisor.reread_update()
+        backups.snapshot(f"edit-{stub}")
         if was_running:
             supervisor.control("start", stub)
         flash(f"Stream “{meta['name']}” updated.", "success")
         return redirect(url_for("home"))
-    return render_template("stream_form.html", **_form_context(stream=meta, mode="edit"))
+    return render_template("stream_form.html", **_form_context(stream=meta, mode="edit", guide=guide.load_settings(stub)))
 
 
 @auth_required
 def stream_delete(stub: str):
     meta = _meta_or_404(stub)
     logger.info("Deleting stream %s", stub)
+    backups.snapshot(f"before-delete-{stub}")
     supervisor.control("stop", stub)
     streams.remove_supervisor_conf(stub)
     supervisor.reread_update()
@@ -337,6 +384,17 @@ def settings():
             new["retention_hours"] = max(new["dvr_hours"] + 25, min(int(form.get("retention_hours") or 30), 168))
         except ValueError:
             errors.append("Numeric settings must be whole numbers.")
+        new["player_debug"] = "player_debug" in form
+        for key in TUNABLE_BOUNDS:
+            if form.get(key) not in (None, ""):
+                try:
+                    new[key] = clamp_tunable(key, float(form.get(key)))
+                except ValueError:
+                    errors.append(f"{key.replace('_', ' ')} must be a number.")
+        if new["source_buffer_max_seconds"] < new["source_buffer_seconds"]:
+            new["source_buffer_max_seconds"] = new["source_buffer_seconds"]
+        if new["relay_buffer_max_seconds"] < new["relay_buffer_seconds"]:
+            new["relay_buffer_max_seconds"] = new["relay_buffer_seconds"]
         public = (form.get("public_base_url") or "").strip().rstrip("/")
         if public and not public.lower().startswith(("http://", "https://")):
             errors.append("Public base URL must start with http:// or https://.")
@@ -344,20 +402,27 @@ def settings():
         if errors:
             for e in errors:
                 flash(e, "danger")
-            return render_template("settings.html", config=new, first_use=first_use(), logs=SERVER_LOGS)
+            return render_template("settings.html", config=new, first_use=first_use(), logs=SERVER_LOGS,
+                                   tunable_defaults=SERVER_DEFAULTS, tunable_bounds=TUNABLE_BOUNDS)
 
         was_first_use = first_use()
         save_server_config(Config.SERVER_CONFIG_FILE, new)
+        backups.snapshot("settings")
         icecast_keys = ("icecast_admin_password", "icecast_source_password", "icecast_max_sources", "public_base_url")
         if was_first_use or any(new[k] != cfg.get(k) for k in icecast_keys):
             icecast.write_icecast_config(new)
             supervisor.control("restart", "icecast")
-        if new["icecast_source_password"] != cfg.get("icecast_source_password"):
+        liq_changed = any(new[k] != cfg.get(k) for k in LIQUIDSOAP_TUNABLES)
+        if new["icecast_source_password"] != cfg.get("icecast_source_password") or liq_changed:
             for meta in streams.all_streams():
                 streams.write_stream_script(meta, new)
                 if supervisor.process_info(meta["stub"]).get("statename") == "RUNNING":
                     supervisor.control("restart", meta["stub"])
         Config.apply_server_config(current_app)
+        if liq_changed:
+            flash("Buffer settings changed: running streams were restarted to apply them.", "warning")
+        if new["player_debug"] and not cfg.get("player_debug"):
+            logger.info("Player diagnostics switched on")
         if not new["enable_admin"]:
             session.pop("logged_in", None)
         elif pw:
@@ -365,7 +430,39 @@ def settings():
         logger.info("Server configuration updated")
         flash("Settings saved." if not was_first_use else "Welcome! Echo Radio is configured. Add your first stream.", "success")
         return redirect(url_for("home"))
-    return render_template("settings.html", config=cfg, first_use=first_use(), logs=SERVER_LOGS)
+    return render_template("settings.html", config=cfg, first_use=first_use(), logs=SERVER_LOGS,
+                           backups=backups.list_backups(), disk=_disk_summary(cfg),
+                           tunable_defaults=SERVER_DEFAULTS, tunable_bounds=TUNABLE_BOUNDS)
+
+
+def _disk_summary(cfg: dict) -> dict:
+    info = state.disk_status()
+    all_meta = streams.all_streams()
+    used_by_recordings = sum(state.index_for(m).disk_bytes() for m in all_meta)
+    projected = disk.projected_bytes(all_meta, int(cfg.get("retention_hours") or 30))
+    return {**info, "recordings": used_by_recordings, "projected": projected, "human": disk.human,
+            "streams": len(all_meta)}
+
+
+@auth_required
+def settings_restore(name: str):
+    try:
+        stubs = backups.restore(name)
+    except (ValueError, OSError, KeyError) as exc:
+        flash(f"Restore failed: {exc}", "danger")
+        return redirect(url_for("settings"))
+    cfg = load_server_config(Config.SERVER_CONFIG_FILE)
+    icecast.write_icecast_config(cfg)
+    supervisor.control("restart", "icecast")
+    for stub in stubs:
+        meta = streams.load_metadata(stub)
+        if meta:
+            streams.materialize(meta, cfg, log=logger.info)
+    supervisor.reread_update()
+    Config.apply_server_config(current_app)
+    logger.info("Restored backup %s (%d streams)", name, len(stubs))
+    flash(f"Restored backup {name} ({len(stubs)} streams). Running streams keep playing; restart any you changed.", "success")
+    return redirect(url_for("settings"))
 
 
 @auth_required
@@ -398,6 +495,7 @@ def settings_import():
         if meta and meta.get("status") == "RUNNING":
             supervisor.control("start", stub)
     Config.apply_server_config(current_app)
+    backups.snapshot("import")
     logger.info("Configuration imported (%d streams)", len(imported))
     flash(f"Configuration imported ({len(imported)} streams).", "success")
     return redirect(url_for("home"))

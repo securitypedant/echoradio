@@ -10,7 +10,11 @@ settings.log.file := false
 settings.log.stdout := true
 settings.log.level := 3
 
-live = input.http(id="live", user_agent="$user_agent", new_track_on_metadata=false, "$stream_input")
+# The source input lives in its own clock behind a buffer, so stalls and bursts from flaky
+# HLS/Icecast sources are absorbed instead of stalling the recorder or cutting the recording.
+live_raw = input.http(id="live_raw", user_agent="$user_agent", new_track_on_metadata=false,
+                      self_sync=true, max_buffer=20., timeout=$source_timeout, "$stream_input")
+live = buffer(id="live", fallible=true, buffer=$source_buffer, max=$source_buffer_max, live_raw)
 
 # Record in-band song metadata (ICY StreamTitle etc.) with a timestamp so it can be replayed
 # time-shifted by the web app. One tab-separated line per change: epoch, artist, title.
@@ -22,9 +26,10 @@ def log_metadata(m) =
     file.write(append=true, data="#{int_of_float(time())}\t#{artist}\t#{title}\n", "$events_log")
   end
 end
-live.on_metadata(synchronous=false, log_metadata)
+live_raw.on_metadata(synchronous=false, log_metadata)
 
-enc = %ffmpeg(format="mpegts", %audio(codec="aac", b="$bitrate", ar=44100, channels=2))
+# Recording encoder: AAC re-encode (default) or packet copy of the source ("copy" mode, AAC sources only).
+enc = $record_encoder
 
 def segment_name(m) =
   # Called when a segment is closed: derive its wall-clock start from the duration.
@@ -39,7 +44,10 @@ output.file.hls(id="record", fallible=true,
   "$hls_dir", [("index", enc.{id3 = false})], live)
 
 # --- icecast relay -----------------------------------------------------------
-delayed = input.ffmpeg(id="delayed", self_sync=false, "$relay_playlist_url")
+# Same pattern for the relay input: a buffer between the HLS reader and the Icecast clock, so a
+# slow playlist fetch can never stall the output ("Latency is too high" / Icecast EPIPE).
+delayed_raw = input.ffmpeg(id="delayed_raw", self_sync=true, "$relay_playlist_url")
+delayed = buffer(id="delayed", fallible=true, buffer=$relay_buffer, max=$relay_buffer_max, delayed_raw)
 # Segment metadata is meaningless to listeners; we publish our own title below.
 delayed = drop_metadata(delayed)
 

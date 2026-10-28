@@ -75,10 +75,16 @@ def normalize_metadata(meta: dict) -> dict:
     meta.setdefault("description", "")
     if not MOUNT_RE.match(str(meta.get("mount") or "")):
         meta["mount"] = meta["stub"]
+    if meta.get("recording_mode") not in ("aac", "copy"):
+        meta["recording_mode"] = "aac"
     art = str(meta.get("artwork_url") or "").strip()
     meta["artwork_url"] = art if art.lower().startswith(("http://", "https://")) and len(art) <= 500 else ""
     now = time.time()
     meta.setdefault("created_at", now)
+    try:
+        meta["sort_order"] = float(meta.get("sort_order", meta["created_at"]))
+    except (TypeError, ValueError):
+        meta["sort_order"] = float(meta["created_at"])
     # Timeline grid anchor: 48 h before creation, on a 10 s boundary (see hls.py).
     meta.setdefault("timeline_origin", float(int((meta["created_at"] - 48 * 3600) // 10) * 10))
     return meta
@@ -144,8 +150,26 @@ def all_streams() -> list[dict]:
         meta = load_metadata(stub)
         if meta:
             out.append(meta)
-    out.sort(key=lambda m: m.get("created_at", 0))
+    out.sort(key=lambda m: (m.get("sort_order", 0), m.get("created_at", 0)))
     return out
+
+
+def set_order(stubs: list[str]) -> int:
+    """Persist a manual card order; unknown stubs are ignored, missing ones keep their place at the end."""
+    known = {m["stub"]: m for m in all_streams()}
+    n = 0
+    for i, stub in enumerate(stubs):
+        meta = known.get(stub)
+        if meta is None:
+            continue
+        meta["sort_order"] = float(i)
+        save_metadata(stub, meta)
+        n += 1
+    rest = [m for m in known.values() if m["stub"] not in stubs]
+    for j, meta in enumerate(rest):
+        meta["sort_order"] = float(n + j)
+        save_metadata(meta["stub"], meta)
+    return n
 
 
 # ------------------------------------------------------------ liquidsoap
@@ -159,8 +183,12 @@ def _liq_str(value: str) -> str:
     return value.replace("\\", "\\\\").replace('"', '\\"').replace("#{", "#\\{")
 
 
-def backup_source_definition(kind: str) -> str:
+def backup_source_definition(kind: str, copy_mode: bool = False) -> str:
     fb = Config.FALLBACK_AUDIO_ROOT
+    if kind == "live" and copy_mode:
+        # In copy mode the recorded "live" source is encoded packets, which cannot feed the PCM relay
+        # chain; the playlist already fills gaps with live audio, so the relay just needs a safety net.
+        return 'backup = blank(id="backup")'
     if kind == "birdsong":
         return f'backup = mksafe(playlist(id="backup", mode="normal", reload_mode="never", "{fb}/birdsong"))'
     if kind == "voice":
@@ -180,17 +208,34 @@ def render_stream_script(meta: dict, server_cfg: dict | None = None) -> str:
         "stream_mount": meta.get("mount") or stub,
         "user_agent": _liq_str(USER_AGENT),
         "bitrate": meta.get("bitrate", Config.DEFAULT_BITRATE),
+        "record_encoder": ('%ffmpeg(format="mpegts", %audio.copy)' if meta.get("recording_mode") == "copy"
+                           else '%ffmpeg(format="mpegts", %audio(codec="aac", b="' + meta.get("bitrate", Config.DEFAULT_BITRATE) + '", ar=44100, channels=2))'),
+        "copy_mode": "true" if meta.get("recording_mode") == "copy" else "false",
         "hls_dir": os.path.join(stream_dir(stub), "hls"),
-        "relay_playlist_url": f"{Config.WEB_PRIVATE_URL}/hls/{stub}/relay.m3u8",
+        "relay_playlist_url": f"{Config.RELAY_BASE_URL}/hls/{stub}/relay.m3u8",
         "title_url": f"{Config.WEB_PRIVATE_URL}/api/streams/{stub}/title",
         "events_log": os.path.join(stream_dir(stub), "events.log"),
         "stream_url": _liq_str(f"{(server_cfg.get('public_base_url') or '').rstrip('/')}/player/{meta.get('mount') or stub}"
                                if server_cfg.get("public_base_url") else ""),
-        "backup_source": backup_source_definition(meta.get("backup_track", "birdsong")),
+        "backup_source": backup_source_definition(meta.get("backup_track", "birdsong"), meta.get("recording_mode") == "copy"),
         "icecast_host": Config.ICECAST_PRIVATE_HOST,
         "icecast_port": Config.ICECAST_PRIVATE_PORT,
         "icecast_source_password": _liq_str(server_cfg["icecast_source_password"]),
+        "source_buffer": _liq_float(server_cfg.get("source_buffer_seconds", 5)),
+        "source_buffer_max": _liq_float(server_cfg.get("source_buffer_max_seconds", 40)),
+        "source_timeout": _liq_float(server_cfg.get("source_timeout_seconds", 20)),
+        "relay_buffer": _liq_float(server_cfg.get("relay_buffer_seconds", 4)),
+        "relay_buffer_max": _liq_float(server_cfg.get("relay_buffer_max_seconds", 20)),
     })
+
+
+def _liq_float(value) -> str:
+    """Liquidsoap float literal (always with a decimal point)."""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        v = 0.0
+    return f"{v:.1f}"
 
 
 def write_stream_script(meta: dict, server_cfg: dict | None = None) -> str:

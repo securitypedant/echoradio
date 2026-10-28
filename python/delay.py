@@ -37,13 +37,18 @@ def source_instant(now: datetime | None, source_tz: str, target_tz: str,
 
     If the naive mapping lands in the future (the source zone is *behind* the
     listener) or closer than ``min_delay`` to now, one day is subtracted so the
-    listener hears yesterday's broadcast of the same wall-clock time.
+    listener hears yesterday's broadcast of the same wall-clock time. The one
+    exception is when both zones share an offset right now: there is no time
+    shift to make, so the station plays as close to live as recording allows
+    (``min_delay`` behind) rather than a day late.
     """
     now = (now or utcnow()).astimezone(UTC)
     src = ZoneInfo(source_tz)
     tgt = ZoneInfo(target_tz)
     wall = now.astimezone(tgt).replace(tzinfo=None)
     instant = _wall_to_instant(wall, src)
+    if instant == now:
+        return now - min_delay
     # Guard against pathological zone data with a bounded loop.
     for _ in range(3):
         if now - instant >= min_delay:
