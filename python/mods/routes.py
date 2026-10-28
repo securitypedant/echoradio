@@ -53,6 +53,8 @@ def register_routes(app) -> None:
     add("/api/streams/<stub>/markers", "api_markers", api.api_markers, methods=["GET", "POST"])
     add("/api/streams/<stub>/markers/<marker_id>", "api_marker_delete", api.api_marker_delete, methods=["DELETE"])
     add("/api/streams/<stub>/guide", "api_guide", api.api_guide)
+    add("/api/streams/<stub>/client-log", "api_client_log", api.api_client_log, methods=["POST"])
+    add("/api/streams/<stub>/player-log", "api_player_log", api.api_player_log)
     add("/api/delay", "api_delay", api.api_delay)
     add("/api/test-url", "api_test_url", api.api_test_url, methods=["POST"])
     add("/api/directory", "api_directory", api.api_directory)

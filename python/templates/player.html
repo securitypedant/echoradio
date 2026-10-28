@@ -15,26 +15,27 @@
           <div class="player-art player-art-sm flex-shrink-0" id="playerArt">{% if s.artwork_url %}<img src="{{ s.artwork_url }}" alt="" onerror="this.remove()">{% else %}<i class="bi bi-soundwave"></i>{% endif %}</div>
           <div class="min-w-0 flex-grow-1">
             <h1 class="h4 mb-0 text-truncate">{{ s.name }}</h1>
-            <div class="small text-body-secondary text-truncate">
-              {{ s.source_timezone.split('/')[-1].replace('_', ' ') }} <i class="bi bi-arrow-right"></i> {{ s.target_timezone.split('/')[-1].replace('_', ' ') }} · {{ s.delay_text }} behind
-              {% if s.description %}<span class="d-none d-md-inline"> · {{ s.description }}</span>{% endif %}
-            </div>
+            {% if s.description %}<div class="small text-body-secondary text-truncate" title="{{ s.description }}">{{ s.description }}</div>{% endif %}
           </div>
         </div>
 
         <div class="now-line mt-3" id="nowLine">
           <div class="time-row">
             <div class="time-cell">
-              <span class="time-label">{{ s.source_timezone.split('/')[-1].replace('_', ' ') }} time</span>
+              <span class="time-city"><i class="bi bi-broadcast-pin me-1"></i>{{ s.source_city }}</span>
+              <span class="time-label" title="Station clock at the point you are hearing, live or rewound">Playback time</span>
               <span class="time-value tabular" id="airedClock">{{ s.aired_at }}</span>
             </div>
-            <div class="time-sep" aria-hidden="true"></div>
+            <div class="time-mid">
+              <div class="time-delay tabular" title="You hear the station {{ s.delay_text }} after it aired">-{{ s.delay_text }}</div>
+              <span class="badge rounded-pill text-bg-secondary" id="liveBadge">Connecting…</span>
+            </div>
             <div class="time-cell">
-              <span class="time-label">Now in {{ s.target_timezone.split('/')[-1].replace('_', ' ') }}</span>
+              <span class="time-city"><i class="bi bi-house-door me-1"></i>{{ s.target_city }}</span>
+              <span class="time-label">Your local time</span>
               <span class="time-value time-value-sm tabular" id="listenerClock">{{ s.listener_now }}</span>
             </div>
             <div class="time-badges">
-              <span class="badge rounded-pill text-bg-secondary" id="liveBadge">Connecting…</span>
               <span class="badge rounded-pill text-bg-warning-subtle border d-none" id="fillBadge" title="Nothing was recorded for this moment, so the backup audio plays instead">{{ s.fill_label }}</span>
             </div>
           </div>
@@ -91,6 +92,21 @@
 
         <div class="markers mt-3 d-none" id="markersList"></div>
 
+        {% if config.PLAYER_DEBUG %}
+        <div class="diag mt-3" id="diagPanel">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+            <div class="small"><i class="bi bi-activity me-1 text-body-secondary"></i><strong>Diagnostics</strong> <span class="text-body-secondary">session <span class="tabular" id="diagId"></span> · <span id="diagStats">starting</span></span></div>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="diagToggle" title="Show or hide the log"><i class="bi bi-list"></i><span class="d-none d-sm-inline ms-1">Log</span></button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="diagClear" title="Clear the client log"><i class="bi bi-eraser"></i></button>
+              <button type="button" class="btn btn-sm btn-primary" id="diagCopy" title="Copy client and server logs for this session"><i class="bi bi-clipboard"></i><span class="ms-1">Copy report</span></button>
+            </div>
+          </div>
+          <pre class="log-view diag-log d-none mb-0" id="diagLog"></pre>
+          <div class="form-text">Diagnostics mode is on in Settings. Everything this player does is logged here and on the server under the same session id; <strong>Copy report</strong> grabs both. <a href="{{ url_for('logs_page', file='player.log') }}" id="diagServerLink">Server log</a>.</div>
+        </div>
+        {% endif %}
+
         <details class="mt-3 small">
           <summary class="text-body-secondary">Listen in another app</summary>
           <div class="mt-2 d-grid gap-2">
@@ -115,6 +131,17 @@
   "sourceTz": s.source_timezone,
   "targetTz": s.target_timezone,
   "leadSeconds": config.PLAYER_LEAD_SECONDS,
+  "bufferSeconds": config.PLAYER_BUFFER_SECONDS,
+  "backBufferSeconds": config.PLAYER_BACK_BUFFER_SECONDS,
+  "bufferHole": config.PLAYER_BUFFER_HOLE_SECONDS,
+  "stallSeconds": config.PLAYER_STALL_SECONDS,
+  "debug": config.PLAYER_DEBUG,
+  "clientLogUrl": url_for('api_client_log', stub=s.stub),
+  "playerLogUrl": url_for('api_player_log', stub=s.stub),
+  "logsPageUrl": url_for('logs_page', file='player.log'),
+  "version": app_version,
+  "delayText": s.delay_text,
+  "backupTrack": s.backup_track,
   "autoplay": request.args.get('autoplay') == '1',
   "artwork": s.artwork_url or url_for('static', filename='android-chrome-512x512.png', _external=True),
   "song": s.now_playing_song or "",

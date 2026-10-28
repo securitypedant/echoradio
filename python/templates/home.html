@@ -39,30 +39,6 @@
 {% if is_admin %}<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js" defer></script>{% endif %}
 <script>
   (function () {
-    // Favourites: a per-browser star on the card (no reordering; the card order is set by dragging).
-    const KEY = 'er-favourites';
-    const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { return []; } };
-    const save = (f) => { try { localStorage.setItem(KEY, JSON.stringify(f)); } catch (e) { /* ignore */ } };
-    function apply() {
-      const favs = load();
-      document.querySelectorAll('.fav-btn').forEach((b) => {
-        const on = favs.includes(b.dataset.stub);
-        b.classList.toggle('is-fav', on);
-        b.querySelector('i').className = on ? 'bi bi-star-fill' : 'bi bi-star';
-        b.title = on ? 'Remove from favourites' : 'Add to favourites';
-      });
-    }
-    document.addEventListener('click', (e) => {
-      const b = e.target.closest('.fav-btn');
-      if (!b) return;
-      const favs = load();
-      const i = favs.indexOf(b.dataset.stub);
-      if (i >= 0) favs.splice(i, 1); else favs.push(b.dataset.stub);
-      save(favs); apply();
-    });
-    document.body.addEventListener('htmx:afterSettle', apply);
-    apply();
-
     // Drag to reorder (admins): persisted server-side so everyone sees the same order.
     const grid = document.getElementById('stream-grid');
     function initSortable() {

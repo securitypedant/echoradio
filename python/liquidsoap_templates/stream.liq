@@ -13,8 +13,8 @@ settings.log.level := 3
 # The source input lives in its own clock behind a buffer, so stalls and bursts from flaky
 # HLS/Icecast sources are absorbed instead of stalling the recorder or cutting the recording.
 live_raw = input.http(id="live_raw", user_agent="$user_agent", new_track_on_metadata=false,
-                      self_sync=true, max_buffer=20., timeout=20., "$stream_input")
-live = buffer(id="live", fallible=true, buffer=5., max=40., live_raw)
+                      self_sync=true, max_buffer=20., timeout=$source_timeout, "$stream_input")
+live = buffer(id="live", fallible=true, buffer=$source_buffer, max=$source_buffer_max, live_raw)
 
 # Record in-band song metadata (ICY StreamTitle etc.) with a timestamp so it can be replayed
 # time-shifted by the web app. One tab-separated line per change: epoch, artist, title.
@@ -47,7 +47,7 @@ output.file.hls(id="record", fallible=true,
 # Same pattern for the relay input: a buffer between the HLS reader and the Icecast clock, so a
 # slow playlist fetch can never stall the output ("Latency is too high" / Icecast EPIPE).
 delayed_raw = input.ffmpeg(id="delayed_raw", self_sync=true, "$relay_playlist_url")
-delayed = buffer(id="delayed", fallible=true, buffer=4., max=20., delayed_raw)
+delayed = buffer(id="delayed", fallible=true, buffer=$relay_buffer, max=$relay_buffer_max, delayed_raw)
 # Segment metadata is meaningless to listeners; we publish our own title below.
 delayed = drop_metadata(delayed)
 

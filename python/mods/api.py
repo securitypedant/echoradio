@@ -8,7 +8,7 @@ from zoneinfo import available_timezones
 from flask import abort, current_app, jsonify, request
 
 import delay as delay_mod
-from mods import state, streams, supervisor
+from mods import playerlog, state, streams, supervisor
 from mods.auth import auth_required
 from mods.utils import stream_urls
 
@@ -179,3 +179,39 @@ def api_streams_order():
     from mods import backups
     backups.snapshot("reorder")
     return jsonify({"ok": True, "ordered": n})
+
+
+# ------------------------------------------------------------- player diagnostics
+def api_client_log(stub: str):
+    """The web player uploads its diagnostics lines here (diagnostics mode only).
+
+    Body: {"c": "<client id>", "lines": ["<HH:MM:SS.mmm> <message>", ...]}. The reply carries the
+    server-side lines for the same session so the player can offer one merged report to copy.
+    """
+    meta = streams.resolve(stub)
+    if meta is None:
+        abort(404)
+    if not playerlog.enabled():
+        return jsonify({"ok": False, "enabled": False, "server": []})
+    data = request.get_json(silent=True) or {}
+    cid = playerlog.valid_cid(str(data.get("c") or ""))
+    if cid is None:
+        abort(400)
+    lines = data.get("lines") or []
+    if not isinstance(lines, list):
+        abort(400)
+    for line in lines[:500]:
+        playerlog.log(meta["stub"], cid, "client", str(line)[:400])
+    return jsonify({"ok": True, "enabled": True, "server": playerlog.lines_for(cid)})
+
+
+def api_player_log(stub: str):
+    """Merged server-side lines (playlists + segment downloads) for one player session, as text."""
+    meta = streams.resolve(stub)
+    if meta is None:
+        abort(404)
+    cid = playerlog.valid_cid(request.args.get("c"))
+    if cid is None:
+        abort(400)
+    body = playerlog.summary_header(meta["stub"], cid) + "\n" + "\n".join(playerlog.lines_for(cid, 2000)) + "\n"
+    return current_app.response_class(body, mimetype="text/plain", headers={"Cache-Control": "no-store"})

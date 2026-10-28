@@ -11,7 +11,7 @@
   const nativeHlsType = media.canPlayType('application/vnd.apple.mpegurl');
   const timers = [];
   const every = (fn, ms) => { const id = setInterval(fn, ms); timers.push(id); return id; };
-  window.__erPlayer = { destroy() { timers.forEach(clearInterval); try { if (hls) hls.destroy(); } catch (e) { /* ignore */ } try { media.pause(); } catch (e) { /* ignore */ } try { if (window.__erAudioCtx) window.__erAudioCtx.close(); } catch (e) { /* ignore */ } } };
+  window.__erPlayer = { destroy() { if (diag) diag.flush(true); timers.forEach(clearInterval); try { if (hls) hls.destroy(); } catch (e) { /* ignore */ } try { media.pause(); } catch (e) { /* ignore */ } try { if (window.__erAudioCtx) window.__erAudioCtx.close(); } catch (e) { /* ignore */ } } };
   const $ = (id) => document.getElementById(id);
   const ui = {
     play: $('btnPlay'), playIcon: $('playIcon'), live: $('btnLive'), back: $('btnBack'), fwd: $('btnFwd'), hour: $('btnHour'),
@@ -37,6 +37,8 @@
   let sleepTimer = null;
   let waitingSince = null;
   let apiState = null;
+  const diag = cfg.debug ? makeDiag() : null;   // diagnostics mode (Settings): client-side session log
+  const dbg = (msg) => { if (diag) diag.add(msg); };
 
   const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
   const setStatus = (text) => { ui.status.textContent = text || ''; };
@@ -116,11 +118,15 @@
     if (pc) ui.aired.textContent = (compact ? fmtSrc : fmtSrcSec).format(pc);
     ui.listener.textContent = fmtTgt.format(Date.now());
     const behind = r.live - t;
-    if (!started) badge('Ready', 'text-bg-secondary');
-    else if (behind < 20) badge('On time', 'is-live');
-    else badge('Rewound ' + humanize(behind), 'is-rewound');
-    ui.tlHint.textContent = (dragging && pc) ? ('Go to ' + fmtSrc.format(pc) + ' station time') : hintDefault;
     const nearLive = behind < 20;
+    // The live badge only says "On time"; a rewound position is shown under the timeline instead.
+    if (!started) badge('Ready', 'text-bg-secondary');
+    else if (nearLive) badge('On time', 'is-live');
+    ui.liveBadge.classList.toggle('d-none', started && !nearLive);
+    if (dragging && pc) ui.tlHint.textContent = 'Go to ' + fmtSrc.format(pc) + ' station time';
+    else if (started && !nearLive) ui.tlHint.textContent = 'Rewound ' + humanize(behind);
+    else ui.tlHint.textContent = hintDefault;
+    ui.tlHint.classList.toggle('is-rewound-hint', started && !nearLive && !dragging);
     if (apiState && apiState.fill_label) ui.fillBadge.textContent = apiState.fill_label;
     const filling = !!(apiState && apiState.playing_kind === 'fill' && nearLive && started);
     ui.fillBadge.classList.toggle('d-none', !filling);
@@ -220,9 +226,11 @@
   // ---- media element events -----------------------------------------------------
   media.addEventListener('play', () => { ui.playIcon.className = 'bi bi-pause-fill'; ui.play.classList.add('is-playing'); ui.play.title = 'Pause'; });
   media.addEventListener('pause', () => { ui.playIcon.className = 'bi bi-play-fill'; ui.play.classList.remove('is-playing'); ui.play.title = 'Play'; setStatus(''); });
-  media.addEventListener('waiting', () => { waitingSince = Date.now(); setStatus('Buffering…'); });
-  media.addEventListener('playing', () => { waitingSince = null; setStatus(''); });
-  media.addEventListener('stalled', () => { if (!waitingSince) waitingSince = Date.now(); });
+  // "waiting"/"stalled" are only informational: Safari fires "stalled" whenever the network has been
+  // idle for 3 s, which with 10 s segments is most of the time, while audio keeps playing. Real stalls
+  // are detected below by the playhead failing to advance.
+  media.addEventListener('waiting', () => { setStatus('Buffering…'); });
+  media.addEventListener('playing', () => { setStatus(''); });
   media.addEventListener('error', () => {
     const err = media.error;
     const names = { 1: 'aborted', 2: 'network error', 3: 'decode error', 4: 'source not supported' };
@@ -245,10 +253,12 @@
       // Safari / iOS: the built-in HLS player is the most reliable path.
       native = true;
       console.info('[player] using native HLS');
+      dbg('start player=native-hls');
       media.src = playlistUrl;
       media.load();
     } else if (window.Hls && Hls.isSupported()) {
       console.info('[player] using hls.js ' + Hls.version);
+      dbg('start player=hls.js/' + Hls.version + ' lead=' + cfg.leadSeconds + ' buffer=' + cfg.bufferSeconds + ' backBuffer=' + cfg.backBufferSeconds + ' hole=' + cfg.bufferHole);
       initHls();
     } else {
       setStatus('This browser cannot play HLS audio. Use the MP3 link below.');
@@ -264,14 +274,34 @@
       liveSyncDuration: cfg.leadSeconds,
       // No liveMaxLatencyDuration: this is a DVR, rewinding must never be "caught up" to live.
       liveDurationInfinity: false,
-      maxBufferLength: 60,
-      backBufferLength: 600,
+      maxBufferLength: cfg.bufferSeconds || 60,
+      backBufferLength: cfg.backBufferSeconds || 600,
+      maxBufferHole: cfg.bufferHole || 0.5,
       enableWorker: true,
       lowLatencyMode: false
     });
     hls.on(Hls.Events.LEVEL_LOADED, (e, d) => { details = d.details; });
     hls.on(Hls.Events.LEVEL_UPDATED, (e, d) => { details = d.details; });
     hls.on(Hls.Events.ERROR, onHlsError);
+    if (diag) {
+      const ms = (st, a, b) => (st && st[a] && st[b]) ? Math.round(st[b] - st[a]) : '?';
+      hls.on(Hls.Events.MANIFEST_LOADED, (e, d) => dbg('manifest loaded levels=' + (d.levels ? d.levels.length : '?')));
+      hls.on(Hls.Events.LEVEL_LOADED, (e, d) => {
+        const det = d.details, st = d.stats || {};
+        dbg('playlist loaded frags=' + det.fragments.length + ' seq=' + det.startSN + '..' + det.endSN + ' dur=' + Math.round(det.totalduration) + 's live=' + det.live +
+            ' load_ms=' + ms(st.loading, 'start', 'end') + ' bytes=' + (st.total || st.loaded || '?'));
+      });
+      hls.on(Hls.Events.FRAG_LOADED, (e, d) => {
+        const f = d.frag, st = f.stats || {}, t = ms(st.loading, 'start', 'end'), bytes = st.total || st.loaded || 0;
+        const kbps = (typeof t === 'number' && t > 0) ? Math.round(bytes * 8 / t) : '?';
+        dbg('frag loaded sn=' + f.sn + ' ' + (f.relurl || '').split('/').pop().split('?')[0] + ' dur=' + f.duration.toFixed(1) + ' ttfb_ms=' + ms(st.loading, 'start', 'first') + ' load_ms=' + t + ' kbps=' + kbps + ' ahead=' + diag.ahead());
+      });
+      hls.on(Hls.Events.FRAG_CHANGED, (e, d) => {
+        const f = d.frag;
+        dbg('frag playing sn=' + f.sn + ' start=' + f.start.toFixed(1) + (f.programDateTime ? ' pdt=' + new Date(f.programDateTime).toISOString().slice(11, 19) : ''));
+      });
+      hls.on(Hls.Events.FRAG_LOAD_EMERGENCY_ABORTED, () => dbg('frag load emergency-aborted'));
+    }
     hls.loadSource(playlistUrl);
     hls.attachMedia(media);
   }
@@ -280,13 +310,17 @@
     const detail = data.details + (data.response && data.response.code ? ' HTTP ' + data.response.code : '') +
       (data.url ? ' ' + data.url.replace(location.origin, '') : '');
     console.warn('[player] hls.js ' + (data.fatal ? 'fatal ' : '') + 'error: ' + detail, data);
+    dbg('hls ' + (data.fatal ? 'FATAL ' : 'error ') + data.type + '/' + detail + (data.reason ? ' reason=' + data.reason : '') + ' t=' + media.currentTime.toFixed(1) + ' ahead=' + (diag ? diag.ahead() : '?'));
+    if (diag) diag.count('errors');
     if (!data.fatal) return;
     if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
       setStatus('Reconnecting… (' + detail + ')');
-      setTimeout(() => { if (hls) hls.startLoad(); }, 2000);
+      if (diag) diag.count('retries');
+      setTimeout(() => { if (hls) { dbg('retry: hls.startLoad() after network error'); hls.startLoad(); } }, 2000);
     } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
       mediaErrors += 1;
-      if (mediaErrors <= 2 && hls) { setStatus('Recovering…'); hls.recoverMediaError(); } else { scheduleRestart(); }
+      if (diag) diag.count('retries');
+      if (mediaErrors <= 2 && hls) { setStatus('Recovering…'); dbg('retry: hls.recoverMediaError() #' + mediaErrors); hls.recoverMediaError(); } else { scheduleRestart(); }
     } else {
       scheduleRestart();
     }
@@ -317,6 +351,8 @@
     const r = range();
     const pdt = r ? r.pdtAt(media.currentTime) : null;
     const wasRewound = r ? (r.live - media.currentTime) > 20 : false;
+    dbg('RESTART scheduled t=' + media.currentTime.toFixed(1) + ' rewound=' + wasRewound + (pdt ? ' pdt=' + new Date(pdt).toISOString().slice(11, 19) : ''));
+    if (diag) diag.count('restarts');
     restartTimer = setTimeout(() => {
       restartTimer = null; mediaErrors = 0;
       if (native) {
@@ -329,21 +365,32 @@
     }, 3000);
   }
 
-  // Stall watchdog: if we have been buffering for a long time, kick the loader.
+  // Stall watchdog: the playhead should move while we want to play; if it has not for a while, kick
+  // the loader (hls.js), or nudge and finally reload (native). Browser events are not trusted here.
   let nativeNudges = 0;
+  const stallMs = (cfg.stallSeconds || 15) * 1000;
+  let progressT = null, progressAt = null;
   every(() => {
-    if (!wantPlaying || !waitingSince) return;
-    const stalled = Date.now() - waitingSince;
+    if (!wantPlaying || !started || media.paused || media.seeking || dragging) { progressT = null; waitingSince = null; return; }
+    const t = media.currentTime, now = Date.now();
+    if (progressT === null || Math.abs(t - progressT) > 0.25) { progressT = t; progressAt = now; waitingSince = null; return; }
+    if (!waitingSince) waitingSince = progressAt;   // no movement since the last check
+    const stalled = now - waitingSince;
+    if (stalled < stallMs) return;
     if (hls) {
-      if (stalled > 25000) { waitingSince = null; hls.stopLoad(); hls.startLoad(); }
+      waitingSince = now; dbg('STALL ' + Math.round(stalled / 1000) + 's (no progress): hls stopLoad/startLoad t=' + t.toFixed(1) + ' ahead=' + (diag ? diag.ahead() : '?'));
+      if (diag) { diag.count('retries'); diag.count('stalls'); }
+      hls.stopLoad(); hls.startLoad();
       return;
     }
     // Native (Safari): first try a tiny seek to kick the buffer, then a full reload that keeps the position.
-    if (stalled > 15000 && nativeNudges < 2) {
-      nativeNudges += 1; waitingSince = Date.now();
-      try { media.currentTime = media.currentTime + 0.5; media.play(); } catch (e) { /* ignore */ }
-    } else if (stalled > 15000) {
-      waitingSince = null; nativeNudges = 0; scheduleRestart();
+    if (nativeNudges < 2) {
+      nativeNudges += 1; waitingSince = now;
+      dbg('STALL ' + Math.round(stalled / 1000) + 's (no progress): nudge #' + nativeNudges + ' t=' + t.toFixed(1) + ' ahead=' + (diag ? diag.ahead() : '?'));
+      if (diag) { diag.count('retries'); diag.count('stalls'); }
+      try { media.currentTime = t + 0.5; media.play(); } catch (e) { /* ignore */ }
+    } else {
+      waitingSince = null; nativeNudges = 0; dbg('STALL ' + Math.round(stalled / 1000) + 's after nudges: reload'); scheduleRestart();
     }
   }, 5000);
   media.addEventListener('playing', () => { nativeNudges = 0; });
@@ -668,6 +715,141 @@
       // Needs a user gesture for the AudioContext: enable on the first play click.
       ui.play.addEventListener('click', () => { if (!vizOn && !native && vizSetup()) vizToggle(true); }, { once: true });
     }
+  }
+
+  // ---- diagnostics (Settings > Player diagnostics) -------------------------------------
+  // A client-side session log: media events, loads, stalls, retries, position jumps and a periodic
+  // buffer snapshot. Lines are uploaded to the server (tagged with this player's session id, the
+  // same id the playlist requests carry) and can be copied together with the server's lines.
+  function makeDiag() {
+    const MAX = 2000;
+    const lines = [];
+    const counts = { errors: 0, retries: 0, restarts: 0, stalls: 0, jumps: 0 };
+    let pending = [];
+    let serverLines = [];
+    let uploading = false;
+    const panel = $('diagPanel'), out = $('diagLog'), stats = $('diagStats');
+    const csrf = document.body.dataset.csrf || '';
+    const clock = () => new Date().toISOString().slice(11, 23);
+    const ahead = () => {
+      try {
+        const b = media.buffered, t = media.currentTime;
+        for (let i = 0; i < b.length; i++) if (b.start(i) - 0.5 <= t && t <= b.end(i)) return (b.end(i) - t).toFixed(1);
+        return b.length ? '0(' + b.length + ' ranges)' : '0';
+      } catch (e) { return '?'; }
+    };
+    const conn = () => {
+      const c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      if (!c) return 'n/a';
+      return (c.effectiveType || '?') + (c.downlink ? ' ' + c.downlink + 'Mbps' : '') + (c.rtt ? ' rtt=' + c.rtt + 'ms' : '') + (c.saveData ? ' saveData' : '');
+    };
+    let renderQueued = false;
+    const render = () => {
+      renderQueued = false;
+      if (!out || out.classList.contains('d-none')) return;
+      const atBottom = out.scrollHeight - out.scrollTop - out.clientHeight < 40;
+      out.textContent = lines.slice(-300).join('\n');
+      if (atBottom) out.scrollTop = out.scrollHeight;
+    };
+    const add = (msg) => {
+      const line = clock() + ' ' + msg;
+      lines.push(line); pending.push(line);
+      if (lines.length > MAX) lines.splice(0, lines.length - MAX);
+      if (pending.length > 1000) pending.splice(0, pending.length - 1000);
+      if (!renderQueued) { renderQueued = true; setTimeout(render, 200); }
+      if (stats) stats.textContent = 'errors ' + counts.errors + ' · retries ' + counts.retries + ' · stalls ' + counts.stalls + ' · jumps ' + counts.jumps + ' · restarts ' + counts.restarts;
+    };
+    const count = (k) => { counts[k] = (counts[k] || 0) + 1; };
+    const header = () => [
+      '# EchoRadio player report ' + new Date().toISOString(),
+      '# stream=' + cfg.stub + ' session=c=' + clientId + ' version=' + cfg.version + ' player=' + (native ? 'native-hls' : (hls ? 'hls.js/' + Hls.version : 'not started')),
+      '# ua=' + ua,
+      '# connection=' + conn() + ' online=' + navigator.onLine + ' visible=' + (document.visibilityState || '?'),
+      '# settings lead=' + cfg.leadSeconds + ' buffer=' + cfg.bufferSeconds + ' backBuffer=' + cfg.backBufferSeconds + ' hole=' + cfg.bufferHole + ' stall=' + cfg.stallSeconds + ' delay=' + cfg.delayText + ' backup=' + cfg.backupTrack,
+      '# counts errors=' + counts.errors + ' retries=' + counts.retries + ' stalls=' + counts.stalls + ' jumps=' + counts.jumps + ' restarts=' + counts.restarts
+    ];
+    const report = () => header().concat(['', '--- client (UTC) ---'], lines, ['', '--- server (UTC) ---'], serverLines.length ? serverLines : ['(no server lines yet)']).join('\n') + '\n';
+    const flush = (beacon) => {
+      if (!pending.length) return;
+      const body = JSON.stringify({ c: clientId, csrf_token: csrf, lines: pending.splice(0, pending.length) });
+      if (beacon && navigator.sendBeacon) {
+        try { navigator.sendBeacon(cfg.clientLogUrl, new Blob([body], { type: 'application/json' })); } catch (e) { /* ignore */ }
+        return;
+      }
+      if (uploading) return;
+      uploading = true;
+      fetch(cfg.clientLogUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf }, body: body, keepalive: true })
+        .then((r) => r.ok ? r.json() : null)
+        .then((j) => { if (j && j.server) serverLines = j.server; })
+        .catch(() => { /* keep lines for the next round */ })
+        .finally(() => { uploading = false; });
+    };
+
+    // Media element events.
+    ['play', 'pause', 'playing', 'waiting', 'stalled', 'seeking', 'seeked', 'ended', 'emptied', 'loadedmetadata', 'ratechange', 'abort', 'suspend'].forEach((ev) => {
+      media.addEventListener(ev, () => {
+        if (ev === 'waiting') count('stalls');
+        add('media ' + ev + ' t=' + media.currentTime.toFixed(1) + ' ahead=' + ahead() + ' ready=' + media.readyState + ' net=' + media.networkState + (ev === 'ratechange' ? ' rate=' + media.playbackRate : ''));
+      });
+    });
+    media.addEventListener('error', () => {
+      const err = media.error;
+      count('errors');
+      add('media ERROR code=' + (err ? err.code : '?') + (err && err.message ? ' ' + err.message : '') + ' t=' + media.currentTime.toFixed(1));
+    });
+    // Position watchdog: the playhead should advance at the playback rate; anything else is a jump.
+    let lastT = null, lastWall = null;
+    every(() => {
+      const now = Date.now(), t = media.currentTime;
+      if (lastT !== null && !media.paused && !media.seeking && !dragging) {
+        const expected = lastT + ((now - lastWall) / 1000) * (media.playbackRate || 1);
+        const delta = t - expected;
+        if (Math.abs(delta) > 2) {
+          count('jumps');
+          const r = range();
+          const pdt = r ? r.pdtAt(t) : null;
+          add('JUMP ' + (delta > 0 ? '+' : '') + delta.toFixed(1) + 's t=' + lastT.toFixed(1) + '->' + t.toFixed(1) + ' ahead=' + ahead() + (pdt ? ' pdt=' + new Date(pdt).toISOString().slice(11, 19) : '') + (r ? ' behind_live=' + (r.live - t).toFixed(0) : ''));
+        }
+      }
+      lastT = t; lastWall = now;
+    }, 1000);
+    // Periodic snapshot.
+    every(() => {
+      if (!started) return;
+      const r = range();
+      add('stat t=' + media.currentTime.toFixed(1) + ' ahead=' + ahead() + ' paused=' + media.paused + ' ready=' + media.readyState + ' net=' + media.networkState + ' rate=' + media.playbackRate +
+          (r ? ' behind_live=' + (r.live - media.currentTime).toFixed(0) + ' window=' + (r.end - r.start).toFixed(0) : '') + ' conn=' + conn());
+    }, 10000);
+    document.addEventListener('visibilitychange', () => add('page ' + document.visibilityState));
+    window.addEventListener('online', () => add('network online'));
+    window.addEventListener('offline', () => add('network OFFLINE'));
+    const c = navigator.connection;
+    if (c && c.addEventListener) c.addEventListener('change', () => add('connection changed ' + conn()));
+    window.addEventListener('pagehide', () => flush(true));
+    every(() => flush(false), 15000);
+
+    // Panel.
+    if (panel) {
+      const idEl = $('diagId'); if (idEl) idEl.textContent = clientId;
+      const link = $('diagServerLink'); if (link) link.href = cfg.logsPageUrl + '&q=' + encodeURIComponent('c=' + clientId);
+      const toggle = $('diagToggle'); if (toggle) toggle.addEventListener('click', () => { out.classList.toggle('d-none'); render(); });
+      const clear = $('diagClear'); if (clear) clear.addEventListener('click', () => { lines.length = 0; render(); });
+      const copy = $('diagCopy');
+      if (copy) copy.addEventListener('click', () => {
+        const text = report();
+        const done = () => showToast('Report copied (' + lines.length + ' client lines, ' + serverLines.length + ' server lines).', 'success');
+        const fallback = () => {
+          const ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+          document.body.appendChild(ta); ta.focus(); ta.select();
+          try { document.execCommand('copy'); done(); } catch (e) { showToast('Could not copy; open the log and select it instead.', 'warning'); out.classList.remove('d-none'); render(); }
+          document.body.removeChild(ta);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+      });
+    }
+    add('session ' + clientId + ' version=' + cfg.version + ' ua=' + ua);
+    add('connection ' + conn() + ' online=' + navigator.onLine);
+    return { add: add, count: count, ahead: ahead, flush: flush };
   }
 
   // Arriving via a "Listen" button: start right away. The click on the previous page counts as the

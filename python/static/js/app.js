@@ -34,6 +34,9 @@
     container.appendChild(el);
     const t = new bootstrap.Toast(el, { delay: 5000 });
     el.addEventListener('hidden.bs.toast', () => el.remove());
+    // Dismiss on any tap: on iPhone Safari the delegated close-button handler is unreliable near the
+    // bottom toolbar, and a tap anywhere on a notice is the natural gesture on a phone anyway.
+    el.addEventListener('click', () => t.hide());
     t.show();
   };
   function marquee() {

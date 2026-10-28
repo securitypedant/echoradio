@@ -221,7 +221,21 @@ def render_stream_script(meta: dict, server_cfg: dict | None = None) -> str:
         "icecast_host": Config.ICECAST_PRIVATE_HOST,
         "icecast_port": Config.ICECAST_PRIVATE_PORT,
         "icecast_source_password": _liq_str(server_cfg["icecast_source_password"]),
+        "source_buffer": _liq_float(server_cfg.get("source_buffer_seconds", 5)),
+        "source_buffer_max": _liq_float(server_cfg.get("source_buffer_max_seconds", 40)),
+        "source_timeout": _liq_float(server_cfg.get("source_timeout_seconds", 20)),
+        "relay_buffer": _liq_float(server_cfg.get("relay_buffer_seconds", 4)),
+        "relay_buffer_max": _liq_float(server_cfg.get("relay_buffer_max_seconds", 20)),
     })
+
+
+def _liq_float(value) -> str:
+    """Liquidsoap float literal (always with a decimal point)."""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        v = 0.0
+    return f"{v:.1f}"
 
 
 def write_stream_script(meta: dict, server_cfg: dict | None = None) -> str:

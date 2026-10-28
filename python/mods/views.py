@@ -14,7 +14,7 @@ from flask import (Response, abort, current_app, flash, redirect, render_templat
 
 from mods import backups, disk, guide, health, icecast, state, streams, supervisor
 from mods.auth import auth_required, hash_password, is_admin
-from mods.config import Config, load_server_config, save_server_config
+from mods.config import Config, load_server_config, save_server_config, SERVER_DEFAULTS, TUNABLE_BOUNDS, LIQUIDSOAP_TUNABLES, clamp_tunable
 from mods.logger import logger
 from mods.utils import export_config_zip, grouped_timezones, import_config_zip, stream_urls
 
@@ -120,6 +120,11 @@ def _log_catalog() -> list[dict]:
         path = os.path.join(streams.stream_dir(meta["stub"]), "liquidsoap.log")
         items.append({"id": f"stream-{meta['stub']}.log", "label": f"{meta['name']} (liquidsoap)",
                       "group": "Streams", "path": path})
+    for name, label in (("player.log", "Player sessions (playlists + uploaded client logs)"),
+                        ("segments.log", "Segment downloads (nginx)")):
+        path = os.path.join(Config.LOGS_ROOT, name)
+        if os.path.exists(path) or current_app.config.get("PLAYER_DEBUG"):
+            items.append({"id": name, "label": label, "group": "Player diagnostics", "path": path})
     return items
 
 
@@ -379,6 +384,17 @@ def settings():
             new["retention_hours"] = max(new["dvr_hours"] + 25, min(int(form.get("retention_hours") or 30), 168))
         except ValueError:
             errors.append("Numeric settings must be whole numbers.")
+        new["player_debug"] = "player_debug" in form
+        for key in TUNABLE_BOUNDS:
+            if form.get(key) not in (None, ""):
+                try:
+                    new[key] = clamp_tunable(key, float(form.get(key)))
+                except ValueError:
+                    errors.append(f"{key.replace('_', ' ')} must be a number.")
+        if new["source_buffer_max_seconds"] < new["source_buffer_seconds"]:
+            new["source_buffer_max_seconds"] = new["source_buffer_seconds"]
+        if new["relay_buffer_max_seconds"] < new["relay_buffer_seconds"]:
+            new["relay_buffer_max_seconds"] = new["relay_buffer_seconds"]
         public = (form.get("public_base_url") or "").strip().rstrip("/")
         if public and not public.lower().startswith(("http://", "https://")):
             errors.append("Public base URL must start with http:// or https://.")
@@ -386,7 +402,8 @@ def settings():
         if errors:
             for e in errors:
                 flash(e, "danger")
-            return render_template("settings.html", config=new, first_use=first_use(), logs=SERVER_LOGS)
+            return render_template("settings.html", config=new, first_use=first_use(), logs=SERVER_LOGS,
+                                   tunable_defaults=SERVER_DEFAULTS, tunable_bounds=TUNABLE_BOUNDS)
 
         was_first_use = first_use()
         save_server_config(Config.SERVER_CONFIG_FILE, new)
@@ -395,12 +412,17 @@ def settings():
         if was_first_use or any(new[k] != cfg.get(k) for k in icecast_keys):
             icecast.write_icecast_config(new)
             supervisor.control("restart", "icecast")
-        if new["icecast_source_password"] != cfg.get("icecast_source_password"):
+        liq_changed = any(new[k] != cfg.get(k) for k in LIQUIDSOAP_TUNABLES)
+        if new["icecast_source_password"] != cfg.get("icecast_source_password") or liq_changed:
             for meta in streams.all_streams():
                 streams.write_stream_script(meta, new)
                 if supervisor.process_info(meta["stub"]).get("statename") == "RUNNING":
                     supervisor.control("restart", meta["stub"])
         Config.apply_server_config(current_app)
+        if liq_changed:
+            flash("Buffer settings changed: running streams were restarted to apply them.", "warning")
+        if new["player_debug"] and not cfg.get("player_debug"):
+            logger.info("Player diagnostics switched on")
         if not new["enable_admin"]:
             session.pop("logged_in", None)
         elif pw:
@@ -409,7 +431,8 @@ def settings():
         flash("Settings saved." if not was_first_use else "Welcome! Echo Radio is configured. Add your first stream.", "success")
         return redirect(url_for("home"))
     return render_template("settings.html", config=cfg, first_use=first_use(), logs=SERVER_LOGS,
-                           backups=backups.list_backups(), disk=_disk_summary(cfg))
+                           backups=backups.list_backups(), disk=_disk_summary(cfg),
+                           tunable_defaults=SERVER_DEFAULTS, tunable_bounds=TUNABLE_BOUNDS)
 
 
 def _disk_summary(cfg: dict) -> dict:

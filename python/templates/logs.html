@@ -15,7 +15,7 @@
       <div class="col-md-4">
         <label class="form-label small text-body-secondary mb-1" for="logFile">Log file</label>
         <select class="form-select" id="logFile">
-          {% for group in ['Server', 'Streams'] %}
+          {% for group in ['Server', 'Streams', 'Player diagnostics'] %}
             {% set items = catalog|selectattr('group', 'equalto', group)|list %}
             {% if items %}
             <optgroup label="{{ group }}">
@@ -44,6 +44,7 @@
       </div>
       <div class="col-6 col-md-2 d-flex gap-2 justify-content-end">
         <button class="btn btn-outline-secondary" type="button" id="logRefresh" title="Reload now"><i class="bi bi-arrow-clockwise"></i></button>
+        <button class="btn btn-outline-secondary" type="button" id="logCopy" title="Copy the lines shown (after filtering) to the clipboard"><i class="bi bi-clipboard"></i></button>
         <a class="btn btn-outline-secondary" id="logDownload" href="#" download title="Download the loaded lines"><i class="bi bi-download"></i></a>
       </div>
     </div>

@@ -9,7 +9,6 @@
           <h2 class="h5 card-title mb-0 text-truncate" title="{{ s.name }}"><a class="link-body-emphasis text-decoration-none" hx-boost="true" hx-target="body" hx-swap="innerHTML show:window:top" href="{{ url_for('player', stub=s.stub, autoplay=1) }}">{{ s.name }}</a></h2>
           {% if s.description %}<div class="text-body-secondary small text-truncate" title="{{ s.description }}">{{ s.description }}</div>{% endif %}
         </div>
-        <button type="button" class="btn btn-link p-0 fav-btn flex-shrink-0" data-stub="{{ s.stub }}" title="Favourite" aria-label="Favourite"><i class="bi bi-star"></i></button>
         {% if is_admin %}<span class="drag-handle text-body-secondary flex-shrink-0" title="Drag to reorder"><i class="bi bi-grip-vertical"></i></span>{% endif %}
         <span class="badge rounded-pill status-badge flex-shrink-0">
           {% if s.status == 'recording' %}<i class="bi bi-record-circle-fill me-1 blink"></i>{% elif s.status == 'source_down' %}<i class="bi bi-exclamation-triangle-fill me-1"></i>{% elif s.status == 'starting' %}<i class="bi bi-hourglass-split me-1"></i>{% else %}<i class="bi bi-pause-circle-fill me-1"></i>{% endif %}{{ s.status_text }}

@@ -428,7 +428,8 @@ class SegmentIndex:
 
 
 # ------------------------------------------------------------------ rendering
-def render_playlist(entries: Iterable[Entry], url_base: str) -> str:
+def render_playlist(entries: Iterable[Entry], url_base: str, url_suffix: str = "") -> str:
+    """``url_suffix`` (e.g. ``?c=abc``) tags every segment URL, so nginx can log one session."""
     entries = list(entries)
     lines = ["#EXTM3U", "#EXT-X-VERSION:3", f"#EXT-X-TARGETDURATION:{TARGET_DURATION}"]
     if not entries:
@@ -442,17 +443,29 @@ def render_playlist(entries: Iterable[Entry], url_base: str) -> str:
             lines.append("#EXT-X-DISCONTINUITY")
         lines.append(f"#EXT-X-PROGRAM-DATE-TIME:{_format_pdt(e.start)}")
         lines.append(f"#EXTINF:{e.duration:.3f},")
-        lines.append(f"{url_base}/{e.path}" if url_base else e.path)
+        lines.append((f"{url_base}/{e.path}" if url_base else e.path) + url_suffix)
     return "\n".join(lines) + "\n"
 
 
 def live_window(index: SegmentIndex, kind: str, edge: float, url_base: str, count: int = 6,
-                live_shift: float | None = None) -> str:
+                live_shift: float | None = None, url_suffix: str = "") -> str:
     """Sliding live playlist whose newest entry starts before ``edge``."""
-    return render_playlist(index.entries_ending_at(kind, edge, count, live_shift), url_base)
+    return render_playlist(index.entries_ending_at(kind, edge, count, live_shift), url_base, url_suffix)
 
 
 def dvr_window(index: SegmentIndex, kind: str, edge: float, hours: float, url_base: str,
-               live_shift: float | None = None) -> str:
+               live_shift: float | None = None, url_suffix: str = "") -> str:
     start = max(index.base_time, edge - hours * 3600.0)
-    return render_playlist(index.entries_between(kind, start, edge, live_shift), url_base)
+    return render_playlist(index.entries_between(kind, start, edge, live_shift), url_base, url_suffix)
+
+
+def describe_playlist(text: str) -> str:
+    """Short summary of a rendered playlist for the diagnostics log."""
+    lines = text.splitlines()
+    pdts = [l[len("#EXT-X-PROGRAM-DATE-TIME:"):] for l in lines if l.startswith("#EXT-X-PROGRAM-DATE-TIME:")]
+    seq = next((l.split(":", 1)[1] for l in lines if l.startswith("#EXT-X-MEDIA-SEQUENCE:")), "?")
+    disc = sum(1 for l in lines if l == "#EXT-X-DISCONTINUITY")
+    fills = sum(1 for l in lines if l.startswith("/") and "/fallback/" in l)
+    n = len(pdts)
+    span = f"{pdts[0][11:19]}..{pdts[-1][11:19]}" if pdts else "-"
+    return f"entries={n} seq={seq} disc={disc} fill={fills} pdt={span}"

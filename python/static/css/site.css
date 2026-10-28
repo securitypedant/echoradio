@@ -164,19 +164,24 @@ body { background: var(--er-bg); min-height: 100vh; }
 .player-extras .sleep-active .bi { animation: blink 2s ease-in-out infinite; }
 
 /* Player time row: "<city> time  07:20:15 PM | Now in <city>  07:57 PM | Rewound 33m" on one line */
-.time-row { display: flex; align-items: center; justify-content: center; gap: .75rem 1rem; flex-wrap: nowrap; }
-.time-cell { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.time-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; justify-items: center; column-gap: 1rem; row-gap: .5rem; }
+.time-cell { display: flex; flex-direction: column; align-items: center; min-width: 0; max-width: 100%; }
 .time-label { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: var(--bs-secondary-color); white-space: nowrap; }
 .time-value { font-size: 2rem; font-weight: 600; line-height: 1.1; white-space: nowrap; }
 .time-value-sm { font-size: 1.5rem; font-weight: 500; color: var(--bs-secondary-color); }
-.time-sep { width: 1px; height: 2.6rem; background: var(--bs-border-color); }
-.time-badges { display: flex; flex-direction: column; gap: .25rem; align-items: flex-start; }
+.time-city { font-size: .85rem; font-weight: 600; white-space: nowrap; }
+.time-city .bi { color: var(--bs-secondary-color); font-size: .8rem; }
+.time-mid { display: flex; flex-direction: column; align-items: center; gap: .35rem; align-self: center; }
+.time-mid .badge { font-size: .7rem; }
+.time-delay { align-self: center; font-size: .8rem; font-weight: 600; color: var(--bs-secondary-color); background: var(--bs-tertiary-bg); border-radius: 1rem; padding: .2rem .55rem; white-space: nowrap; }
+.time-badges { grid-column: 1 / -1; display: flex; justify-content: center; flex-wrap: wrap; gap: .35rem; }
+.time-badges:not(:has(.badge:not(.d-none))) { display: none; }
 @media (max-width: 575.98px) {
-  .time-row { gap: .5rem .6rem; }
-  .time-value { font-size: 1.55rem; }
+  .time-row { column-gap: .5rem; row-gap: .35rem; }
+  .time-value { font-size: 1.45rem; }
   .time-value-sm { font-size: 1.2rem; }
   .time-label { font-size: .62rem; }
-  .time-sep { height: 2.2rem; }
+  .time-city { font-size: .75rem; }
 }
 
 /* Source health grid: 7 days x 24 hours */
@@ -185,9 +190,6 @@ body { background: var(--er-bg); min-height: 100vh; }
 .health-grid .cell.unknown { background: var(--bs-tertiary-bg); }
 
 /* Favourites */
-.fav-btn { color: var(--bs-secondary-color); font-size: 1.1rem; line-height: 1; }
-.fav-btn.is-fav { color: #f4b400; }
-.fav-btn:hover { color: #f4b400; }
 
 /* Programme guide strip under the timeline, with marker ticks */
 .guide-strip { position: relative; height: 18px; margin: -4px 0 4px; border-radius: 4px; background: var(--bs-tertiary-bg); overflow: hidden; }
@@ -241,11 +243,24 @@ body { background: var(--er-bg); min-height: 100vh; }
 
 /* Phone layout for the time row: two clocks side by side, badges on their own line below */
 @media (max-width: 575.98px) {
-  .time-row { flex-wrap: wrap; gap: .35rem .75rem; }
-  .time-cell { flex: 1 1 40%; }
-  .time-sep { height: 2rem; }
-  .time-value { font-size: 1.5rem; }
-  .time-value-sm { font-size: 1.25rem; }
-  .time-badges { flex-basis: 100%; flex-direction: row; justify-content: center; flex-wrap: wrap; gap: .35rem; margin-top: .15rem; }
+  .time-delay { font-size: .72rem; padding: .15rem .45rem; }
+  .time-value { font-size: 1.45rem; }
+  .time-value-sm { font-size: 1.2rem; }
+  .time-label { letter-spacing: .04em; }
+  .time-mid .badge { font-size: .62rem; }
   .player-head h1 { font-size: 1.15rem; }
 }
+
+/* Player diagnostics panel */
+.diag-log { max-height: 260px; font-size: .72rem; white-space: pre-wrap; word-break: break-word; }
+
+/* Toasts: clear of the iPhone home indicator / Safari toolbar, and tappable. */
+#toasts { padding-bottom: calc(1rem + env(safe-area-inset-bottom)) !important; }
+#toasts .toast { cursor: pointer; }
+@media (max-width: 575.98px) {
+  #toasts { top: 0 !important; bottom: auto !important; left: 0; right: 0; padding-top: calc(.75rem + env(safe-area-inset-top)) !important; }
+  #toasts .toast { width: auto; max-width: none; }
+}
+
+/* Timeline hint doubles as the rewound indicator */
+#tlHint.is-rewound-hint { color: var(--er-accent); font-weight: 600; }

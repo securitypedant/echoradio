@@ -61,8 +61,10 @@ def source_instant(meta: dict, now: datetime | None = None) -> datetime:
     return delay_mod.source_instant(now, meta["source_timezone"], meta["target_timezone"], min_delay())
 
 
-# The "live stream" backup plays the station this far behind real time (seconds).
-LIVE_LAG_SECONDS = 60.0
+# The "live stream" backup plays the station this far behind real time (seconds). It must exceed the
+# largest playlist lead (the MP3 relay's, 40 s by default) plus a segment and the index refresh, or a
+# relay playing live fill drains to the end of its playlist every 10 s ("Buffer emptied" cycling).
+LIVE_LAG_SECONDS = 90.0
 
 
 def live_shift(meta: dict, now: datetime | None = None) -> float | None:
@@ -197,6 +199,8 @@ def prune_all(retention_hours: int) -> None:
         except Exception:  # noqa: BLE001
             logger.exception("Housekeeping failed for %s", meta["stub"])
     enforce_disk_guardrail(all_meta, retention_hours)
+    from mods import playerlog
+    playerlog.trim_segments_log()
 
 
 def enforce_disk_guardrail(all_meta: list[dict], retention_hours: int) -> None:

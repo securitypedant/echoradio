@@ -90,6 +90,51 @@
             </div>
           </div>
 
+          {% if not first_use %}
+          <h3 class="h6 text-uppercase text-body-secondary">Diagnostics</h3>
+          <div class="row g-3 mb-4">
+            <div class="col-12">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="player_debug" name="player_debug" {% if config.player_debug %}checked{% endif %}>
+                <label class="form-check-label" for="player_debug">Player diagnostics</label>
+              </div>
+              <div class="form-text">While on, every web player keeps a log of its connection (loads, buffering, stalls, retries, position jumps) and shows a <strong>Diagnostics</strong> panel with a copy button. The server logs each session's playlist requests and segment downloads under the same session id, so the two sides line up. Costs a little bandwidth per listener; switch it off when done.{% if config.player_debug %} See <a href="{{ url_for('logs_page', file='player.log') }}">player.log</a>.{% endif %}</div>
+            </div>
+          </div>
+
+          <h3 class="h6 text-uppercase text-body-secondary d-flex align-items-center gap-2">
+            <button class="btn btn-link btn-sm p-0 text-uppercase text-body-secondary fw-semibold text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#tuning" aria-expanded="false"><i class="bi bi-chevron-right me-1"></i>Player and buffer tuning</button>
+          </h3>
+          <div class="collapse" id="tuning">
+            <p class="form-text mt-0">Seconds unless stated. Defaults suit most installations; change one thing at a time and watch the diagnostics. Buffer settings marked ↻ are written into each stream's recorder script, so saving them restarts running streams.</p>
+            {% set T = [
+              ('player_lead_seconds', 'Player start offset', 'How far behind the playlist end the web player starts (hls.js liveSyncDuration). Larger survives slow networks, at the cost of a later start.'),
+              ('player_buffer_seconds', 'Player buffer ahead', 'Audio the web player downloads ahead of the playhead. Larger copes with longer radio dropouts on phones.'),
+              ('player_back_buffer_seconds', 'Player back buffer', 'Audio kept behind the playhead for instant short rewinds.'),
+              ('player_buffer_hole_seconds', 'Gap tolerance', 'Timeline gaps up to this size are skipped silently by hls.js instead of stalling.'),
+              ('player_stall_seconds', 'Stall patience', 'How long the player waits while buffering before nudging and then reloading.'),
+              ('min_delay_seconds', 'Minimum delay', 'Never play closer to the recording edge than this. Also the delay used when both timezones match.'),
+              ('relay_lead_seconds', 'MP3 relay lead', 'Head start given to the Icecast MP3 relay so it lands on the delayed instant.'),
+              ('source_buffer_seconds', 'Recorder pre-buffer ↻', 'Audio liquidsoap holds in front of the recorder before it starts writing; absorbs bursts from the station.'),
+              ('source_buffer_max_seconds', 'Recorder buffer limit ↻', 'Most the recorder buffer may hold before it drops data.'),
+              ('source_timeout_seconds', 'Station timeout ↻', 'Seconds without data before the recorder reconnects to the station.'),
+              ('relay_buffer_seconds', 'Relay pre-buffer ↻', 'Buffer between the time-shifted playlist reader and the Icecast output.'),
+              ('relay_buffer_max_seconds', 'Relay buffer limit ↻', 'Most the relay buffer may hold.'),
+            ] %}
+            <div class="row g-3 mb-3">
+              {% for key, label, help in T %}
+              {% set lo, hi = tunable_bounds[key] %}
+              <div class="col-md-4 col-sm-6">
+                <label for="{{ key }}" class="form-label">{{ label }}</label>
+                <input type="number" class="form-control tunable" id="{{ key }}" name="{{ key }}" value="{{ config[key] }}" min="{{ lo }}" max="{{ hi }}" step="{{ '0.1' if key == 'player_buffer_hole_seconds' else '1' }}" data-default="{{ tunable_defaults[key] }}">
+                <div class="form-text">{{ help }} Default {{ tunable_defaults[key] }}.</div>
+              </div>
+              {% endfor %}
+            </div>
+            <button type="button" class="btn btn-outline-secondary btn-sm mb-4" id="tuningReset"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset tuning to defaults</button>
+          </div>
+          {% endif %}
+
           <div class="d-flex gap-2">
             <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>{{ 'Finish setup' if first_use else 'Save settings' }}</button>
             {% if not first_use %}<a href="{{ url_for('home') }}" class="btn btn-outline-secondary">Cancel</a>{% endif %}
@@ -165,6 +210,16 @@
     const group = document.getElementById('admin_password_group');
     const sync = () => { group.style.visibility = cb.checked ? 'visible' : 'hidden'; };
     cb.addEventListener('change', sync); sync();
+    const reset = document.getElementById('tuningReset');
+    if (reset) reset.addEventListener('click', () => {
+      document.querySelectorAll('input.tunable').forEach((el) => { el.value = el.dataset.default; });
+    });
+    const tuning = document.getElementById('tuning');
+    if (tuning) {
+      // Open the tuning section when anything differs from the defaults (Bootstrap loads deferred).
+      const changed = Array.from(document.querySelectorAll('input.tunable')).some((el) => String(el.value) !== String(el.dataset.default));
+      if (changed) window.addEventListener('DOMContentLoaded', () => { tuning.classList.add('show'); });
+    }
   })();
 </script>
 {% endblock %}

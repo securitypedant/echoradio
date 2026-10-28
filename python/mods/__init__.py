@@ -6,7 +6,7 @@ import os
 from flask import Flask
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-VERSION = "2.1.1"
+VERSION = "2.1.2"
 
 
 def create_app() -> Flask:

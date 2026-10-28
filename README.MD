@@ -83,6 +83,8 @@ Settings first.
 | Keep recordings for | Rolling buffer length in hours (25–168). |
 | Rewind window | How far back the web player can scrub (1–24 h). |
 | Public address | Optional base URL used for the copyable stream links. |
+| Player diagnostics | Switch on while chasing a playback problem (see below), off when done. |
+| Player and buffer tuning | Player start offset, buffer ahead/back, gap tolerance, stall patience, minimum delay, MP3 relay lead, and the liquidsoap recorder/relay buffers and station timeout. Defaults suit most installations; buffer changes restart running streams. |
 
 Settings also shows disk usage with the projected size at the current retention, keeps the last 30
 automatic configuration backups (one is written on every change) with one-click restore, and trims
@@ -93,8 +95,21 @@ quality; "copy" records the source's AAC packets as-is (less CPU, no generation 
 AAC sources) and a **programme guide** source (BBC automatic, or a weekly schedule you enter).
 
 Environment variables: `SECRET_KEY` (Flask session key; generated and persisted if unset),
-`PUBLIC_BASE_URL`, `ECHORADIO_MIN_DELAY_SECONDS` (default 120), `ECHORADIO_RELAY_LEAD_SECONDS`
-(default 35, alignment of the MP3 relay), `ECHORADIO_AUTOSTART=0` to not start streams at boot.
+`PUBLIC_BASE_URL`, `ECHORADIO_AUTOSTART=0` to not start streams at boot, and defaults for the
+timing tunables (`ECHORADIO_MIN_DELAY_SECONDS` 120, `ECHORADIO_PLAYER_LEAD_SECONDS` 30,
+`ECHORADIO_RELAY_LEAD_SECONDS` 40); values saved in Settings override them.
+
+### Diagnosing playback problems
+
+If the web player skips or stalls on some network, switch on **Player diagnostics** in Settings and
+reproduce the problem. Every player then shows a Diagnostics panel with its session id and a
+**Copy report** button. The report has the client side (media events, each playlist and segment
+load with timing and throughput, buffering, stalls, retries, position jumps, a buffer snapshot
+every ten seconds) and the server side for the same session (playlist builds in `player.log`,
+segment downloads in `segments.log` written by nginx), both in UTC and tagged with the session id so
+they can be read as one timeline. The same server view is on the Logs page under "Player
+diagnostics" or at `/api/streams/<stub>/player-log?c=<session id>`. Switch diagnostics off
+afterwards: each player uploads its log every 15 seconds while it is on.
 
 ## How it works
 

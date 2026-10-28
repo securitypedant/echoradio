@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.1.2 — 2026-10-28
+
+- Player: "Rewound 3h 36m" now replaces the "Drag to rewind up to N h" hint under the timeline while rewound; the badge by the clocks only shows "On time" when you are at the delayed position.
+- Player header: the city names sit above the two clocks (labelled "Playback time" and "Your local time") with the delay ("-7h") and the "On time" pill between them, and the station description has the full width under the name instead of being truncated with the timezone line.
+- Removed the favourites star from the stream cards: it only stored a per-browser star and did nothing else once drag-to-reorder existed.
+- Notices (toasts) dismiss on a tap anywhere, and on phones they appear at the top of the screen, clear of Safari's bottom toolbar where the close button could not be hit.
+- MP3 relay: while playing the "live station" fill it ran only 20 s behind the newest segment and emptied its buffer every 10 s (switching to the backup and back, audible as stutter on radios). The live fill now runs 90 s behind real time, leaving the relay a safe margin.
+- Safari/iOS: fixed the repeated stall-nudge-reload cycle that caused a short gap and a skip to the live point every minute or so. Safari fires the `stalled` event whenever the network is idle for 3 s, which the watchdog took as a buffering stall; stalls are now detected only when the playhead stops advancing.
+- Player diagnostics (Settings > Diagnostics): while on, every web player keeps a session log of media events, playlist and segment loads with timings, buffering, stalls, retries, position jumps and a ten-second buffer snapshot, shown in a panel on the player with a **Copy report** button. The server logs the same session's playlist builds (`player.log`) and segment downloads (`segments.log`, via nginx) under the player's session id, the merged view is at `/api/streams/<stub>/player-log?c=<id>`, and the copied report contains both sides.
+- Tunables moved into Settings > "Player and buffer tuning": player start offset, buffer ahead, back buffer, gap tolerance, stall patience, minimum delay, MP3 relay lead, and the liquidsoap recorder/relay buffers and station timeout. Environment variables still set the defaults; changing a liquidsoap buffer restarts running streams.
+- Logs page: new "Player diagnostics" group, `?q=` prefill for the search box, and a copy button that copies exactly the lines shown after filtering.
+
 ## 2.1.1 — 2026-10-27
 
 - Rewinding on desktop no longer jumps: segment timestamps jitter by a few seconds when the source bursts, which the playlist used to pass on as timing breaks; the timeline is now rebuilt from the exact segment durations and only re-anchored on a real break (recorder restart or a hole).

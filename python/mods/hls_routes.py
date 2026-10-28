@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 import os
+import time
 
 from flask import Response, abort, current_app, request, send_from_directory
 
 import hls
-from mods import state, streams
+from mods import playerlog, state, streams
 
 PLAYLIST_HEADERS = {
     "Content-Type": "application/vnd.apple.mpegurl",
@@ -37,23 +38,58 @@ def _note_listener(meta: dict) -> None:
     state.note_listener(meta["stub"], key)
 
 
+_seen_cids: dict[str, float] = {}
+
+
+def _diag_cid() -> str | None:
+    """Client id to tag this request's log lines and segment URLs with (diagnostics mode only)."""
+    if not playerlog.enabled():
+        return None
+    return playerlog.valid_cid(request.args.get("c"))
+
+
+def _diag_log(meta: dict, cid: str, kind: str, text: str, started: float) -> None:
+    now = time.time()
+    first = cid not in _seen_cids
+    _seen_cids[cid] = now
+    if len(_seen_cids) > 500:
+        for k in [k for k, ts in _seen_cids.items() if now - ts > 3600]:
+            _seen_cids.pop(k, None)
+    if first:
+        playerlog.log(meta["stub"], cid, "server",
+                      f"session ip={request.remote_addr} ua={(request.headers.get('User-Agent') or '')[:160]}")
+    playerlog.log(meta["stub"], cid, "server",
+                  f"playlist {kind} {hls.describe_playlist(text)} build_ms={int((now - started) * 1000)}")
+
+
+def _window(meta: dict, kind: str):
+    started = time.time()
+    idx = state.index_for(meta)
+    edge = state.source_instant(meta).timestamp() + current_app.config["PLAYER_LEAD_SECONDS"]
+    cid = _diag_cid()
+    suffix = f"?c={cid}" if cid else ""
+    if kind == "dvr":
+        hours = float(current_app.config.get("DVR_HOURS") or 4)
+        text = hls.dvr_window(idx, meta["backup_track"], edge, hours, _url_base(meta),
+                              live_shift=state.live_shift(meta), url_suffix=suffix)
+    else:
+        text = hls.live_window(idx, meta["backup_track"], edge, _url_base(meta), count=6,
+                               live_shift=state.live_shift(meta), url_suffix=suffix)
+    if cid:
+        _diag_log(meta, cid, kind, text, started)
+    return _playlist(text)
+
+
 def live_playlist(stub: str):
     meta = _meta_or_404(stub)
     _note_listener(meta)
-    idx = state.index_for(meta)
-    edge = state.source_instant(meta).timestamp() + current_app.config["PLAYER_LEAD_SECONDS"]
-    return _playlist(hls.live_window(idx, meta["backup_track"], edge, _url_base(meta), count=6,
-                                     live_shift=state.live_shift(meta)))
+    return _window(meta, "live")
 
 
 def dvr_playlist(stub: str):
     meta = _meta_or_404(stub)
     _note_listener(meta)
-    idx = state.index_for(meta)
-    edge = state.source_instant(meta).timestamp() + current_app.config["PLAYER_LEAD_SECONDS"]
-    hours = float(current_app.config.get("DVR_HOURS") or 4)
-    return _playlist(hls.dvr_window(idx, meta["backup_track"], edge, hours, _url_base(meta),
-                                    live_shift=state.live_shift(meta)))
+    return _window(meta, "dvr")
 
 
 def relay_playlist(stub: str):
