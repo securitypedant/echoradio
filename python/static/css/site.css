@@ -21,7 +21,8 @@
   --bs-link-hover-color: #8fe0e9;
 }
 
-body { background: var(--er-bg); min-height: 100vh; }
+body { background: var(--er-bg); min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
+main.container { flex: 1 0 auto; }
 .card { background: var(--er-card); border: 1px solid rgba(0,0,0,.06); }
 [data-bs-theme="dark"] .card { border-color: rgba(255,255,255,.08); }
 
@@ -36,6 +37,10 @@ body { background: var(--er-bg); min-height: 100vh; }
 .er-nav .nav-link.btn-link { color: rgba(255,255,255,.75); text-decoration: none; }
 .er-nav .nav-link.btn-link:hover { color: #fff; }
 .brand-font { font-family: "Kaushan Script", cursive; font-weight: 400; letter-spacing: .5px; }
+@media (max-width: 767.98px) {
+  .nav-inner { padding: .25rem 0 .5rem; }
+  .nav-tools { padding-top: .35rem; }
+}
 .min-w-0 { min-width: 0; }
 .tabular { font-variant-numeric: tabular-nums; }
 
@@ -49,6 +54,17 @@ body { background: var(--er-bg); min-height: 100vh; }
 .stream-card.status-source_down { border-top-color: var(--er-warn); }
 .stream-card.status-starting { border-top-color: var(--er-accent); }
 .status-badge { background: var(--bs-secondary); color: #fff; font-weight: 500; }
+/* Card header band: artwork, name, On switch and status pill. Admins drag it to reorder. */
+.card-head { padding: .8rem 1.25rem; background: var(--bs-tertiary-bg); border-bottom: 1px solid var(--bs-border-color-translucent);
+  border-radius: var(--bs-card-inner-border-radius) var(--bs-card-inner-border-radius) 0 0; }
+[data-bs-theme="dark"] .card-head { background: rgba(255,255,255,.04); }
+.card-head.is-draggable { cursor: grab; user-select: none; -webkit-user-select: none; }
+.card-head.is-draggable:active { cursor: grabbing; }
+.card-head.is-draggable a, .card-head .power-switch, .card-head .power-switch * { cursor: pointer; }
+.card-head.is-draggable:hover { background: rgba(26,166,183,.1); }
+.power-switch { display: inline-flex; align-items: center; gap: .4rem; padding-left: 0; margin: 0; min-height: 0; }
+.power-switch .form-check-input { float: none; margin: 0; }
+.power-switch .form-check-label { font-size: .8rem; font-weight: 600; }
 .status-recording .status-badge, .status-badge.status-recording { background: var(--er-rec); }
 .status-source_down .status-badge, .status-badge.status-source_down { background: var(--er-warn); color: #222; }
 .status-starting .status-badge, .status-badge.status-starting { background: var(--er-accent); }
@@ -74,7 +90,8 @@ body { background: var(--er-bg); min-height: 100vh; }
 .player-art { width: 96px; height: 96px; border-radius: 28px; display: grid; place-items: center; font-size: 2.6rem; color: #fff;
   background: linear-gradient(135deg, var(--er-accent), var(--er-navy-2)); box-shadow: 0 .75rem 1.5rem rgba(26,166,183,.25); }
 .btn-play { width: 76px; height: 76px; border-radius: 50%; font-size: 2.2rem; display: inline-grid; place-items: center; padding: 0; }
-.btn-play.is-playing { background: var(--er-navy-2); border-color: var(--er-navy-2); }
+/* While playing the button turns navy, so a thin accent ring keeps it visible on the dark card */
+.btn-play.is-playing { background: var(--er-navy-2); border: 2px solid var(--er-accent); }
 .timeline .form-range::-webkit-slider-thumb { background: var(--er-accent); }
 .timeline .form-range::-moz-range-thumb { background: var(--er-accent); }
 .volume .form-range { width: 140px; }
@@ -115,6 +132,43 @@ body { background: var(--er-bg); min-height: 100vh; }
   .stream-card .tz-row { font-size: .8rem; }
 }
 
+/* Player page on phones: the card fills the screen (no footer, nothing to scroll) and spare space is
+   shared between the header, clocks, timeline and controls */
+@media (max-width: 767.98px) {
+  main.player-main { display: flex; flex-direction: column; padding-bottom: calc(.75rem + env(safe-area-inset-bottom)) !important; }
+  main.player-main > .row { flex: 1 0 auto; }
+  main.player-main > .row > [class*="col-"] { display: flex; flex-direction: column; }
+  main.player-main .player-card { flex: 1 0 auto; display: flex; flex-direction: column; }
+  main.player-main .player-card .card-body { flex: 1 0 auto; display: flex; flex-direction: column; }
+  main.player-main .now-line, main.player-main .timeline { margin-top: 1rem !important; }
+  /* The controls take the spare height and the play button floats centred between timeline and buttons */
+  main.player-main .player-controls { flex: 1 0 auto; display: flex; flex-direction: column; margin-top: 0 !important; }
+  main.player-main .play-wrap { flex: 1 0 auto; align-items: center; padding: .75rem 0; }
+  main.player-main .player-card .card-body { padding: 1.25rem 1rem !important; }
+  main.player-main #statusLine { min-height: 1.3rem; display: block !important; }
+}
+/* Short phone viewports (Safari with its toolbars): smaller play button so nothing scrolls */
+@media (max-width: 575.98px) and (max-height: 720px) {
+  .player-controls .btn-play { width: 96px !important; height: 96px !important; font-size: 3rem !important; }
+  .btn-ctl { min-height: 56px !important; }
+  .player-art-sm { width: 36px; height: 36px; }
+}
+
+/* Player buttons: solid fills with dark text so they stay readable in sunlight (grey outlines did not) */
+.player-card .btn-outline-secondary {
+  --bs-btn-color: var(--bs-body-color); --bs-btn-bg: var(--bs-secondary-bg); --bs-btn-border-color: var(--bs-secondary-color);
+  --bs-btn-hover-color: var(--bs-body-color); --bs-btn-hover-bg: var(--bs-tertiary-bg); --bs-btn-hover-border-color: var(--bs-body-color);
+  --bs-btn-active-color: #fff; --bs-btn-active-bg: var(--er-navy-2); --bs-btn-active-border-color: var(--er-navy-2);
+  font-weight: 600;
+}
+.player-card .btn-ctl.btn-outline-danger {
+  --bs-btn-color: #b3184a; --bs-btn-bg: rgba(224,36,94,.08); --bs-btn-border-color: var(--er-rec);
+  --bs-btn-hover-color: #fff; --bs-btn-hover-bg: var(--er-rec); --bs-btn-hover-border-color: var(--er-rec);
+  --bs-btn-active-color: #fff; --bs-btn-active-bg: var(--er-rec); --bs-btn-active-border-color: var(--er-rec);
+  font-weight: 600;
+}
+[data-bs-theme="dark"] .player-card .btn-ctl.btn-outline-danger { --bs-btn-color: #ff7aa2; --bs-btn-bg: rgba(224,36,94,.18); }
+
 /* Autoplay fallback overlay on the player */
 .tap-to-play { position: absolute; inset: 0; z-index: 5; border: 0; border-radius: var(--bs-card-border-radius); cursor: pointer;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .5rem; color: #fff;
@@ -124,10 +178,12 @@ body { background: var(--er-bg); min-height: 100vh; }
 /* Player controls: one huge play button, then a 4-up grid of large touch targets */
 .player-controls .btn-play { width: 104px; height: 104px; font-size: 3rem; }
 .player-secondary { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; }
-.btn-ctl { min-height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .15rem; padding: .5rem .25rem; }
-.btn-ctl i { font-size: 1.35rem; line-height: 1; }
-.btn-ctl span { font-size: .75rem; line-height: 1.1; }
-.player-extras .dropdown-toggle { min-height: 44px; }
+.btn-ctl { min-height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .2rem; padding: .5rem .25rem; border-width: 2px; }
+.btn-ctl i { font-size: 1.5rem; line-height: 1; }
+.btn-ctl span { font-size: .8rem; line-height: 1.1; }
+/* Sleep timer: icon-only until a timer is running (everywhere, not just phones) */
+.player-extras .dropdown-toggle:not(.sleep-active) #sleepLabel { display: none; }
+.player-extras .dropdown-toggle:not(.sleep-active) .bi { margin-right: 0 !important; }
 @media (max-width: 575.98px) {
   .player-controls .btn-play { width: 136px; height: 136px; font-size: 4rem; }
   .btn-ctl { min-height: 72px; }
@@ -142,13 +198,14 @@ body { background: var(--er-bg); min-height: 100vh; }
 @media (max-width: 575.98px) {
   main.container { padding-top: .75rem !important; padding-bottom: .75rem !important; }
   .player-art-sm { width: 40px; height: 40px; border-radius: 12px; font-size: 1.2rem; }
-  .player-head h1 { font-size: 1.2rem; }
+  .player-head h1 { font-size: 1.25rem; }
   .player-clock { font-size: 2rem; }
   .player-controls { margin-top: .75rem !important; }
   .player-controls .btn-play { width: 112px; height: 112px; font-size: 3.4rem; }
   .player-secondary { margin-top: .75rem !important; gap: .4rem; }
-  .btn-ctl { min-height: 60px; }
-  .btn-ctl span { font-size: .7rem; }
+  .btn-ctl { min-height: 64px; padding: .5rem .1rem; }
+  .btn-ctl span { font-size: .75rem; white-space: nowrap; letter-spacing: -.01em; }
+  .player-secondary { gap: .3rem; }
   .player-extras { margin-top: .75rem !important; }
   #statusLine:empty { display: none; }
 }
@@ -177,19 +234,21 @@ body { background: var(--er-bg); min-height: 100vh; }
 .time-badges { grid-column: 1 / -1; display: flex; justify-content: center; flex-wrap: wrap; gap: .35rem; }
 .time-badges:not(:has(.badge:not(.d-none))) { display: none; }
 @media (max-width: 575.98px) {
-  .time-row { column-gap: .5rem; row-gap: .35rem; }
-  .time-value { font-size: 1.45rem; }
-  .time-value-sm { font-size: 1.2rem; }
-  .time-label { font-size: .62rem; }
-  .time-city { font-size: .75rem; }
+  .time-row { column-gap: .35rem; row-gap: .35rem; }
+  .time-value { font-size: 1.75rem; }
+  .time-value-sm { font-size: 1.4rem; }
+  .time-label { font-size: .78rem; letter-spacing: .03em; }
+  .time-city { font-size: .95rem; }
+  .time-city .bi { font-size: .85rem; }
+  .time-delay { font-size: .8rem; padding: .2rem .5rem; }
+  .time-mid .badge { font-size: .75rem; }
+  .time-mid { gap: .3rem; }
 }
 
 /* Source health grid: 7 days x 24 hours */
 .health-grid { display: grid; grid-template-columns: repeat(24, 1fr); gap: 2px; }
 .health-grid .cell { height: 12px; border-radius: 2px; background: rgba(42,157,143, calc(.12 + var(--fill, 0) * .88)); }
 .health-grid .cell.unknown { background: var(--bs-tertiary-bg); }
-
-/* Favourites */
 
 /* Programme guide strip under the timeline, with marker ticks */
 .guide-strip { position: relative; height: 18px; margin: -4px 0 4px; border-radius: 4px; background: var(--bs-tertiary-bg); overflow: hidden; }
@@ -206,12 +265,11 @@ body { background: var(--er-bg); min-height: 100vh; }
 
 /* Spectrum analyser */
 .analyser { display: block; width: 100%; height: 96px; background: transparent; }
-@media (max-width: 575.98px) { .analyser { height: 72px; } .player-extras { gap: .4rem; } }
+@media (max-width: 575.98px) { .analyser { height: 72px; } .player-extras, .player-extras .extras-mid { gap: .3rem !important; } }
 
-/* Drag to reorder */
-.drag-handle { cursor: grab; font-size: 1.1rem; line-height: 1; touch-action: none; }
-.drag-handle:active { cursor: grabbing; }
+/* Drag to reorder (the card header is the handle) */
 .drag-ghost { opacity: .4; }
+.drag-chosen .stream-card { box-shadow: 0 .75rem 1.5rem rgba(0,0,0,.2) !important; }
 
 /* Card timezone row stays on one line */
 .tz-chip { min-width: 0; }
@@ -227,7 +285,6 @@ body { background: var(--er-bg); min-height: 100vh; }
 .now-meta .show .presenter { font-weight: 400; color: var(--bs-secondary-color); }
 .now-meta .song { font-size: .9rem; color: var(--bs-secondary-color); margin-top: .15rem; }
 .now-meta .bi { color: var(--er-accent); }
-.stream-card .now-playing .fs-5 { font-size: 1.4rem !important; }
 .stream-card .card-title { font-size: 1.3rem; }
 
 /* Marquee for overflowing metadata: pause, scroll the whole line, pause, reset */
@@ -240,16 +297,6 @@ body { background: var(--er-bg); min-height: 100vh; }
   100%      { transform: translateX(0); }
 }
 @media (prefers-reduced-motion: reduce) { .mq-line.marquee .mq { animation: none; } }
-
-/* Phone layout for the time row: two clocks side by side, badges on their own line below */
-@media (max-width: 575.98px) {
-  .time-delay { font-size: .72rem; padding: .15rem .45rem; }
-  .time-value { font-size: 1.45rem; }
-  .time-value-sm { font-size: 1.2rem; }
-  .time-label { letter-spacing: .04em; }
-  .time-mid .badge { font-size: .62rem; }
-  .player-head h1 { font-size: 1.15rem; }
-}
 
 /* Player diagnostics panel */
 .diag-log { max-height: 260px; font-size: .72rem; white-space: pre-wrap; word-break: break-word; }

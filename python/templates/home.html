@@ -2,10 +2,7 @@
 {% block title %}Streams · Echo Radio{% endblock %}
 {% block content %}
 <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
-  <div>
-    <h1 class="h3 mb-1">Your streams</h1>
-    <div class="text-body-secondary">{{ streams|length }} of {{ max_streams }} configured · each one records around the clock and replays on your clock.</div>
-  </div>
+  <h1 class="h3 mb-0">Your streams</h1>
   {% if is_admin %}
     {% if streams|length < max_streams %}
     <a class="btn btn-primary" href="{{ url_for('stream_new') }}"><i class="bi bi-plus-lg me-1"></i>Add stream</a>
@@ -45,7 +42,11 @@
       if (!grid || !window.Sortable || grid.dataset.sortable) return;
       grid.dataset.sortable = '1';
       new Sortable(grid, {
-        handle: '.drag-handle', animation: 150, ghostClass: 'drag-ghost',
+        // The card header is the handle. A plain click on the name still opens the player and the On switch still works; on touch a
+        // short hold starts the drag so normal scrolling is unaffected.
+        handle: '.card-head', filter: 'button, input, label', preventOnFilter: false,
+        delay: 200, delayOnTouchOnly: true, touchStartThreshold: 4,
+        animation: 150, ghostClass: 'drag-ghost', chosenClass: 'drag-chosen',
         onEnd: async () => {
           const order = Array.from(grid.children).map((c) => c.id.replace('card-', ''));
           try {

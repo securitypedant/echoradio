@@ -37,7 +37,8 @@
         <span class="navbar-toggler-icon"></span>
       </button>
       <div class="collapse navbar-collapse" id="navbarNav">
-        <ul class="navbar-nav ms-auto align-items-md-center gap-md-1">
+        <div class="nav-inner d-flex w-100 justify-content-between justify-content-md-end align-items-start align-items-md-center">
+        <ul class="navbar-nav align-items-md-center gap-md-1">
           <li class="nav-item"><a class="nav-link {% if request.endpoint == 'home' %}active{% endif %}" href="{{ url_for('home') }}">Streams</a></li>
           {% if is_admin %}
           <li class="nav-item"><a class="nav-link {% if request.endpoint == 'settings' %}active{% endif %}" href="{{ url_for('settings') }}">Settings</a></li>
@@ -55,23 +56,26 @@
             <li class="nav-item"><a class="nav-link" href="{{ url_for('login') }}">Admin login</a></li>
             {% endif %}
           {% endif %}
-          <li class="nav-item d-flex align-items-center gap-2 ms-md-2">
-            <button class="btn btn-outline-light btn-sm" type="button" id="themeToggle" title="Toggle light/dark"><i class="bi bi-circle-half"></i></button>
-            <a class="btn btn-outline-light btn-sm" href="https://github.com/securitypedant/echoradio" target="_blank" rel="noopener" title="View on GitHub"><i class="bi bi-github"></i></a>
-          </li>
         </ul>
+        <div class="nav-tools d-flex align-items-center gap-2 ms-md-2">
+          <button class="btn btn-outline-light btn-sm" type="button" id="themeToggle" title="Toggle light/dark"><i class="bi bi-circle-half"></i></button>
+          <a class="btn btn-outline-light btn-sm" href="https://github.com/securitypedant/echoradio" target="_blank" rel="noopener" title="View on GitHub"><i class="bi bi-github"></i></a>
+        </div>
+        </div>
       </div>
     </div>
   </nav>
 
-  <main class="container py-4">
+  <main class="container py-4 {% block main_class %}{% endblock %}">
     {% block content %}{% endblock %}
   </main>
 
+  {% block footer %}
   <footer class="container pb-4 text-body-secondary small d-flex justify-content-between flex-wrap gap-2">
     <span>Echo Radio {{ app_version }}</span>
     <span>Record radio from anywhere, listen on your own time.</span>
   </footer>
+  {% endblock %}
 
   <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toasts">
     {% with messages = get_flashed_messages(with_categories=True) %}

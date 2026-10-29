@@ -261,7 +261,7 @@
       dbg('start player=hls.js/' + Hls.version + ' lead=' + cfg.leadSeconds + ' buffer=' + cfg.bufferSeconds + ' backBuffer=' + cfg.backBufferSeconds + ' hole=' + cfg.bufferHole);
       initHls();
     } else {
-      setStatus('This browser cannot play HLS audio. Use the MP3 link below.');
+      setStatus('This browser cannot play HLS audio. Copy the MP3 address with the MP3 button and open it in another app.');
       return;
     }
     play();

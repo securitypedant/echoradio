@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.1.3 — 2026-10-29
+
+- Stream cards: the header band (artwork, name, description, On switch and status pill) is now the drag handle for reordering; the grip icon is gone. On touch, hold the header briefly to drag so scrolling still works. The On/Off switch moved up into the header next to the status pill, and Listen, the MP3 and HLS copy buttons and the Manage menu share one row at the bottom.
+- Stream cards: the clock line ("07:20 London time · aired 7h ago") is gone, since every card showed the same wall-clock time and the timezones are already in the pills above. The line now reads "Now playing · aired 7h ago".
+- Stream cards on phones: the MP3/HLS copy buttons are hidden (they are on the player), and the action row disappears entirely when there is nothing to show.
+- Home page: removed the "N of M configured" subtitle.
+- Navigation on phones: the menu opens with the links on the left and the theme and GitHub buttons on the right.
+- Player on phones: the card fills the screen with no footer and nothing to scroll; spare space is shared between the header, clocks, timeline and controls, and the play button shrinks a little on short screens (Safari with its toolbars). The clocks, city names and labels are larger (nothing under 12 px), and the play button sits centred between the timeline and the control row. The sleep timer button is icon-only until a timer is running (desktop too), and the pause button has a thin accent ring so it stands out on the dark card.
+- Player buttons are solid, high-contrast fills instead of grey outlines, so they are readable in sunlight.
+- Player: the "Listen in another app" section is replaced by MP3 and HLS copy buttons beside Cast/AirPlay.
+
 ## 2.1.2 — 2026-10-28
 
 - Player: "Rewound 3h 36m" now replaces the "Drag to rewind up to N h" hint under the timeline while rewound; the badge by the clocks only shows "On time" when you are at the delayed position.
