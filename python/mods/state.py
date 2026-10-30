@@ -245,7 +245,11 @@ def start_housekeeper(get_retention_hours, interval: int = 600) -> None:
 
 
 def now_playing_title(meta: dict, now: datetime | None = None) -> str:
-    """Short ICY title for the MP3 relay, e.g. "11:21 London time" or "Bird song · buffer filling"."""
+    """Short ICY title for the MP3 relay, e.g. "11:21 London time" or "Bird song - buffer filling".
+
+    ASCII only: ICY metadata has no declared character set, and players of the Winamp family
+    decode it as Latin-1, so a middle dot or dash came out as a replacement character.
+    """
     now = now or delay_mod.utcnow()
     info = delay_info(meta, now)
     idx = index_for(meta)
@@ -255,8 +259,8 @@ def now_playing_title(meta: dict, now: datetime | None = None) -> str:
     city = meta["source_timezone"].split("/")[-1].replace("_", " ")
     if playing and playing[-1].kind == "fill":
         if kind == "live":
-            return f"Live now · recording for {info['aired_at']} {city} time"
-        return f"{streams.BACKUP_KINDS.get(kind, kind)} · buffer filling"
+            return f"Live now - recording for {info['aired_at']} {city} time"
+        return f"{streams.BACKUP_KINDS.get(kind, kind)} - buffer filling"
     base = f"{info['aired_at']} {city} time"
     song = songlog.song_at(meta["stub"], instant)
     try:
@@ -266,5 +270,5 @@ def now_playing_title(meta: dict, now: datetime | None = None) -> str:
     except Exception:  # noqa: BLE001
         prog = None
     if song:
-        return f"{song[:90]} · {base}"
-    return f"{prog['title'][:90]} · {base}" if prog and prog.get("title") else base
+        return f"{song[:90]} - {base}"
+    return f"{prog['title'][:90]} - {base}" if prog and prog.get("title") else base

@@ -474,7 +474,7 @@
       const d = await resp.json();
       programmes = d.programmes || [];
       guideLoadedFor = key;
-      if (hourLabel) hourLabel.textContent = programmes.length ? 'Start of show' : 'Top of hour';
+      if (hourLabel) hourLabel.textContent = programmes.length ? 'Show start' : 'Top of hour';
       if (ui.hour) ui.hour.title = programmes.length ? 'Start of this show; press again for the previous one' : 'Start of this hour; press again for the previous hour';
       renderGuide();
     } catch (e) { /* ignore */ }

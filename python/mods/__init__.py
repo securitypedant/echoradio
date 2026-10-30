@@ -6,7 +6,7 @@ import os
 from flask import Flask
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-VERSION = "2.1.3"
+VERSION = "2.1.4"
 
 
 def create_app() -> Flask:
@@ -57,6 +57,15 @@ def create_app() -> Flask:
             return f"{round(float(value) * 100)}%"
         except (TypeError, ValueError):
             return "0%"
+
+    @app.template_filter("size_mb")
+    def size_mb(value):
+        """Megabytes as text, switching to one-decimal gigabytes from 1000 MB ("3.1 GB")."""
+        try:
+            mb = float(value)
+        except (TypeError, ValueError):
+            return "0 MB"
+        return f"{mb / 1000:.1f} GB" if mb >= 1000 else f"{round(mb)} MB"
 
     logger.info("Echo Radio %s starting (data at %s)", VERSION, Config.DATA_ROOT)
     state.start_housekeeper(lambda: app.config.get("RETENTION_HOURS", 30))

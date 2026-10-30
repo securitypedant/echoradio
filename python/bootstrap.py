@@ -22,9 +22,19 @@ def ensure_dirs() -> None:
 
 
 def ensure_icecast_config(server_cfg: dict) -> None:
-    if not os.path.exists(Config.ICECAST_CONFIG_FILE):
+    """Render icecast.xml from the template and server config; rewrite it when it differs.
+
+    The file is derived entirely from server_config.json, so regenerating on every start is
+    what lets template changes (e.g. the UTF-8 metadata charset) reach existing installs.
+    """
+    wanted = icecast.render_icecast_config(server_cfg)
+    current = None
+    if os.path.exists(Config.ICECAST_CONFIG_FILE):
+        with open(Config.ICECAST_CONFIG_FILE, encoding="utf-8") as fh:
+            current = fh.read()
+    if current != wanted:
         icecast.write_icecast_config(server_cfg)
-        log("wrote icecast.xml")
+        log("wrote icecast.xml" if current is None else "updated icecast.xml")
 
 
 def refresh_streams(server_cfg: dict) -> None:

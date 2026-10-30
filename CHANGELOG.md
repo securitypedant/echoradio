@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.4 — 2026-10-29
+
+- Stream details: the Recordings card shows gigabytes once the recordings pass 1000 MB ("3.1 GB on disk").
+- Player: the skip buttons read "30 s" under their direction arrows, and the programme-start button reads "Show start" (it was "Start of show").
+- MP3 relay: ICY "now playing" titles are now sent in UTF-8. Icecast re-encoded them to ISO-8859-1 on the way into the stream, so any non-ASCII character (accented song titles, the middle dot) reached VLC, iOS and ReAmp as a replacement character. The Icecast config gains a default mount with `<charset>UTF-8</charset>`, and bootstrap now regenerates icecast.xml on every start so existing installs pick it up.
+- MP3 relay: the ICY "now playing" title uses plain ASCII separators ("The Country Show - 21:27 London time"). ICY metadata has no declared character set and players of the Winamp family (ReAmp on macOS, for one) decode it as Latin-1, so the middle dot showed as a replacement character.
+
 ## 2.1.3 — 2026-10-29
 
 - Stream cards: the header band (artwork, name, description, On switch and status pill) is now the drag handle for reordering; the grip icon is gone. On touch, hold the header briefly to drag so scrolling still works. The On/Off switch moved up into the header next to the status pill, and Listen, the MP3 and HLS copy buttons and the Manage menu share one row at the bottom.

@@ -37,7 +37,7 @@
       <div class="card-body">
         <div class="text-body-secondary small">Recordings</div>
         <div class="fs-3 fw-semibold mt-1">{{ s.hours_recorded }} h <span class="fs-6 fw-normal text-body-secondary">of the last 24</span></div>
-        <div class="small text-body-secondary">{{ s.disk_mb }} MB on disk</div>
+        <div class="small text-body-secondary">{{ s.disk_mb|size_mb }} on disk</div>
         <div class="coverage-bars mt-3" title="Hourly recording coverage, oldest left">
           {% for c in s.coverage %}<span class="bar" style="--fill: {{ c }}" title="{{ 24 - loop.index }}h ago: {{ c|pct }}"></span>{% endfor %}
         </div>

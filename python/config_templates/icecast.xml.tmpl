@@ -21,6 +21,11 @@
     <http-headers>
         <header name="Access-Control-Allow-Origin" value="*" />
     </http-headers>
+    <!-- In-band ICY titles are sent as UTF-8. Icecast's default re-encodes them to ISO-8859-1,
+         which modern players (VLC, iOS, ReAmp) read as UTF-8 and show as a replacement character. -->
+    <mount type="default">
+        <charset>UTF-8</charset>
+    </mount>
     <paths>
         <basedir>/usr/share/icecast2</basedir>
         <webroot>/usr/share/icecast2/web</webroot>
